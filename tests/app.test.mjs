@@ -25,5 +25,7 @@ test('catalog, ready form, builder, template, history, analytics and stale resul
  click('navigate',{view:'analytics'});assert.match(page(),/Сравнение по модулям/);click('analytics-drill',{module:'СУР'});assert.match(page(),/Балл риска/);assert.match(page(),/SUR-2026-001/);
  change({filter:'from'},'2026-12-01');change({filter:'to'},'2026-01-01');click('generate');assert.match(page(),/Начало периода не может быть позже окончания/);
  click('navigate',{view:'sources'});assert.match(page(),/Рабочие данные не подключены/);
+ click('linked-example');assert.match(page(),/VGA-LINK-001/);assert.match(page(),/Не устранено на дату/);click('details',{index:'0'});assert.match(node('#dialog').innerHTML,/PAY-003/);assert.match(node('#dialog').innerHTML,/CANCEL-001/);click('close-dialog');
+ click('save-template');node('#template-name').value='Связанный шаблон';click('confirm-save');const linked=JSON.parse(saved.get('saq.reports.templates.v1'))[0];assert.equal(linked.dataset,'case-links');click('new-builder');click('load-template',{id:linked.savedId});click('generate');assert.match(page(),/VGA-LINK-002/);
  timers.forEach(clearTimeout);global.setTimeout=realTimeout;
 });

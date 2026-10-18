@@ -1,3 +1,4 @@
+import {joinAuditFacts,linkedFieldIds} from './linked-data.js';
 import {fields,fieldMap} from './data.js';
 export function validate(config){
  const f=config.filters;
@@ -16,7 +17,7 @@ export function filterRecords(records,config){
   (!f.format||r.format===f.format)&&(!f.kind||r.kind===f.kind)&&(!f.risk||r.risk===f.risk)&&(!f.decision||r.decision===f.decision)&&(!f.included||r.reportIncluded===f.included)&&
   (f.minFinancial===''||(r.financial!==null&&r.financial>=Number(f.minFinancial)))&&
   (!f.onlyOverdue||(r.deadline&&r.deadline<f.to&&!['Завершено','Рассмотрено'].includes(r.status)))&&
-  (!f.query||[r.id,r.object,r.bin,r.auditor].some(v=>v.toLocaleLowerCase('ru').includes(f.query.toLocaleLowerCase('ru')))));
+  (!f.query||[r.id,r.object,r.bin,r.auditor].some(v=>String(v??'').toLocaleLowerCase('ru').includes(f.query.toLocaleLowerCase('ru')))));
 }
 export function aggregate(rows,group){
  const unique=[...new Map(rows.map(r=>[`${r.module}:${r.id}`,r])).values()];
@@ -30,9 +31,9 @@ export function aggregate(rows,group){
   return out;
  });
 }
-export function availableFields(sources,group){return fields.filter(f=>f.available.some(m=>sources.includes(m))&&(group==='none'?!['count','objectCount','month'].includes(f.id):f.id===group||f.aggregation));}
+export function availableFields(sources,group,dataset){return fields.filter(f=>(dataset==='case-links'?linkedFieldIds.includes(f.id):!f.dataset)&&f.available.some(m=>sources.includes(m))&&(group==='none'?!['count','objectCount','month'].includes(f.id):f.id===group||f.aggregation));}
 export function resultColumns(config){return config.group==='none'?[...config.columns]:[config.group,...config.columns.filter(k=>k!==config.group&&fieldMap[k]?.aggregation)];}
-export function generate(records,config){const error=validate(config);if(error)throw new Error(error);const filtered=filterRecords(records,config);return {rows:structuredClone(aggregate(filtered,config.group)),columns:resultColumns(config),recordCount:new Set(filtered.map(r=>r.module+':'+r.id)).size,objectCount:new Set(filtered.map(r=>r.bin)).size,config:structuredClone(config),createdAt:new Date().toISOString()};}
+export function generate(records,config){const error=validate(config);if(error)throw new Error(error);const filtered=filterRecords(config.dataset==='case-links'?joinAuditFacts(undefined,config.filters.to):records,config);return {rows:structuredClone(aggregate(filtered,config.group)),columns:resultColumns(config),recordCount:new Set(filtered.map(r=>r.module+':'+r.id)).size,objectCount:new Set(filtered.map(r=>r.bin)).size,config:structuredClone(config),createdAt:new Date().toISOString()};}
 export function sorted(rows,key,direction=1){return [...rows].sort((a,b)=>{const av=a[key],bv=b[key];if(av==null)return bv==null?0:1;if(bv==null)return -1;return direction*(typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv),'ru',{numeric:true}));});}
 export function numericTotals(rows){const out={};for(const f of fields.filter(f=>f.aggregation==='sum')){const nums=rows.map(r=>r[f.id]).filter(v=>typeof v==='number');out[f.id]=nums.length?nums.reduce((a,b)=>a+b,0):null;}return out;}
 export function formatValue(value,key){if(value==null||value==='')return '—';const f=fieldMap[key];if(f?.type==='date')return value.slice(0,10).split('-').reverse().join('.');if(typeof value==='number')return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:f?.type==='integer'?0:2}).format(value);return String(value);}
