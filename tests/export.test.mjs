@@ -19,7 +19,8 @@ function unzip(bytes){
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const cellXml=(sheet,ref)=>sheet.match(new RegExp(`<c r="${ref}"(?:[^>]*\\/>|[^>]*>[\\s\\S]*?<\\/c>)`))?.[0];
 const resultFor=id=>{const report=reports.find(r=>r.id===id);return generate(records,{name:report.name,sources:report.source,columns:report.columns,group:report.group,template:report.template,filters:{...defaultFilters(),format:report.format||''}});};
-const custom=()=>generate(records,{name:'Проверка реквизитов',sources:modules,columns:['id','module','financial','risk'],group:'none',filters:defaultFilters()});
+// Legacy snapshot fixture exercises serialization independently of builder validation.
+const custom=()=>({config:{name:'Проверка реквизитов',sources:modules,columns:['id','module','financial','risk'],group:'none',filters:defaultFilters()},columns:['id','module','financial','risk'],rows:[],createdAt:new Date().toISOString()});
 
 test('every XLSX view starts with its table and no sheet freezes rows or adds a report banner/footer',()=>{
  for(const mode of [false,true,'flat'])for(const template of templates){
