@@ -123,3 +123,11 @@ test('empty results still create a selectable one-row table with selected header
  assert.match(sheet,new RegExp(`<dimension ref="A1:${colName(2)}1"`));assert.match(sheet,/<autoFilter ref="A1:B1"/);
  assert.equal(cells(sheet).length,1);assert.equal(cells(sheet)[0].cells.length,2);
 });
+
+
+test('text identifiers retain an explicit text format and their exact digits',()=>{
+ const r=generate(records,{name:'БИН',sources:['ВГА'],group:'none',columns:['id','bin'],filters:defaultFilters()});
+ const files=unzip(exportSelectedXlsx(r,'report',['field:bin']));
+ assert.match(files['xl/styles.xml'],/numFmtId="49"/);
+ assert.match(files['xl/worksheets/sheet1.xml'],/t="inlineStr" s="4"[^]*?990000000001/);
+});
