@@ -88,5 +88,49 @@ export function exportXlsx(result,original=false){
  if(full){const mapping=templateMapping(t.id),rows=[['Колонка','Показатель исходной формы','Источник значения']];t.columns.forEach(c=>rows.push([c.letter,c.labels.join(' / ')||'Служебная колонка',!c.labels.length?'Служебная колонка; не заполняется':mapping[c.letter]?'Поле демонстрационного набора; при отсутствии значения — «Нет данных»':'Нет данных; источник показателя не подключен']));sheets.push({name:'Состав формы',xml:sheet(tableRows(rows,[14,100,60]),{widths:[14,100,60],lastCol:3,lastRow:rows.length})});}
  return pack(sheets);
 }
-export function exportCsv(result){const safe=v=>{if(v==null)return '';const s=String(v);return typeof v==='string'&&/^[\s]*[=+@\-]/.test(s)?`'${s}`:s;};const quote=v=>'"'+safe(v).replaceAll('"','""')+'"';return '\uFEFF'+[result.columns.map(k=>fieldMap[k]?.label||k),...result.rows.map(r=>result.columns.map(k=>compactValue(r,k,result.config)))].map(r=>r.map(quote).join(';')).join('\r\n');}
+function csvRows(rows){const safe=v=>{if(v==null)return '';const s=String(v);return typeof v==='string'&&/^[\s]*[=+@\-]/.test(s)?`'${s}`:s;};const quote=v=>'"'+safe(v).replaceAll('"','""')+'"';return '\uFEFF'+rows.map(r=>r.map(quote).join(';')).join('\r\n');}
+export function exportCsv(result){return csvRows([result.columns.map(k=>fieldMap[k]?.label||k),...result.rows.map(r=>result.columns.map(k=>compactValue(r,k,result.config)))]);}
+
+// Export selection is a projection of an already generated result, never a new query.
+// "available" describes a configured source mapping, not row-by-row completeness.
+export function exportColumnOptions(result,scope){
+ if(scope!=='form'&&scope!=='report')throw new Error('Выберите доступный состав выгрузки.');
+ if(scope==='report')return result.columns.map(key=>({id:`field:${key}`,label:fieldMap[key]?.label||key,group:fieldMap[key]?.source||'Реквизиты',available:true}));
+ const template=templates.find(t=>t.id===result.config.template);
+ if(!template)throw new Error('Для этого отчета нет исходной формы.');
+ const mapping=templateMapping(template.id),root=c=>c.labels.find(label=>!/^(?:в том числе|из них)$/i.test(label.trim()));
+ const sections=new Set(template.columns.filter(c=>c.labels.length>1).map(root));
+ return template.columns.filter(c=>c.labels.length).map(c=>({id:`form:${c.letter}`,label:c.labels.join(' / '),group:sections.has(root(c))?root(c):'Реквизиты',available:Boolean(mapping[c.letter])}));
+}
+function selectedExport(result,scope,ids){
+ const options=exportColumnOptions(result,scope);
+ if(!Array.isArray(ids)||!ids.length)throw new Error('Выберите хотя бы одну колонку для выгрузки.');
+ if(new Set(ids).size!==ids.length)throw new Error('Колонки выгрузки не должны повторяться.');
+ const allowed=new Set(options.map(option=>option.id));
+ if(ids.some(id=>!allowed.has(id)))throw new Error('В составе выгрузки есть недоступная колонка.');
+ const selected=new Set(ids),columns=options.filter(option=>selected.has(option.id));
+ let widths,values;
+ if(scope==='form'){
+  const template=templates.find(t=>t.id===result.config.template),mapping=templateMapping(template.id);
+  const originals=columns.map(option=>template.columns.find(c=>`form:${c.letter}`===option.id));
+  widths=originals.map(c=>columnWidth(c,true));
+  values=result.rows.map((record,index)=>originals.map(c=>fullValue(record,c,mapping,index)));
+ }else{
+  const keys=columns.map(option=>option.id.slice(6));
+  widths=keys.map(key=>['object','organ'].includes(key)?42:28);
+  values=result.rows.map(record=>keys.map(key=>compactValue(record,key,result.config)));
+ }
+ return {columns,widths,values};
+}
+export function exportSelectedXlsx(result,scope,ids){
+ const {columns,widths,values}=selectedExport(result,scope,ids),{config}=result;
+ const headings=columns.map(column=>column.label),lastCol=columns.length,lastRow=values.length+1;
+ const body=sheet(tableRows([headings,...values],widths),{widths,filter:`A1:${colName(lastCol)}${lastRow}`,lastCol,lastRow});
+ const params=[['Параметр','Значение'],['Отчет',config.name],['Источник','Вымышленные демонстрационные записи. API модулей не подключены.'],['Модули',config.sources.join(', ')],['Сформирован',new Date(result.createdAt).toLocaleString('ru-RU',{timeZone:'Asia/Almaty'})],['Строк в выгрузке',result.rows.length],['Группировка',config.group],['Вид выгрузки',scope==='form'?'Выбранные колонки исходной формы':'Выбранные колонки отчета'],['Единица сумм','тыс. тенге'],...Object.entries(config.filters).filter(([,value])=>value!==''&&value!==false&&value!=null).map(([key,value])=>[filterNames[key]||key,String(value)]),['Нет данных','Источник показателя не подключен либо значение отсутствует. Это не ноль.'],['Не применимо','Показатель не относится к модулю записи.'],['Нулевые значения','Ноль означает известное нулевое значение.'],...headings.map((label,index)=>[`Выбранная колонка ${index+1}`,label])];
+ return pack([{name:'Отчет',xml:body},{name:'Параметры',xml:sheet(tableRows(params,[38,100]),{widths:[38,100],lastCol:2,lastRow:params.length})}]);
+}
+export function exportSelectedCsv(result,scope,ids){
+ const {columns,values}=selectedExport(result,scope,ids);
+ return csvRows([columns.map(column=>column.label),...values]);
+}
 export function download(data,name,type){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}

@@ -15,3 +15,20 @@
 .gap-table td{min-width:240px;max-width:520px;line-height:1.6;white-space:normal}
 .gap-table td:first-child{min-width:170px}
 @media(max-width:800px){.relation-rules{grid-template-columns:1fr}}
+
+/* Export settings stay inside a dialog so wide forms do not crowd the report. */
+dialog.export-dialog{width:min(980px,calc(100vw - 32px));max-height:94vh}
+dialog.export-dialog .dialog-body{max-height:calc(94vh - 155px);padding:18px 24px;overflow:auto}
+dialog.export-dialog .dialog-foot{flex-wrap:wrap;padding:14px 24px}
+.export-context{margin:0 0 8px;line-height:1.6;font-size:12px}.export-context strong{font-size:14px;color:#30363c}
+.export-scope{margin:14px 0}.export-filters{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px}
+.export-selection-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 10px}
+.export-count{font-size:12px;color:#526777;margin:8px 0}.export-options{max-height:340px;min-height:90px;overflow:auto;border:1px solid #d8e2e9;border-radius:6px}
+.export-group-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 12px;background:#f4f5f6;border-bottom:1px solid #e0e5e9}
+.export-group-head h4{font-size:12px;margin:0;color:#3c4855}.export-group-head .button{flex-shrink:0}
+.export-column{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid #edf0f3;cursor:pointer;font-size:12px;color:#465462}
+.export-column:hover{background:#fafbfc}.export-column input{margin:3px 0 0;accent-color:var(--blue);flex-shrink:0;width:16px;height:16px}
+.export-column>span{flex:1;min-width:0;overflow-wrap:anywhere}.export-column strong{font-weight:500}.export-column small{display:block;color:#788694;font-size:11px;margin-top:3px;line-height:1.5}
+.export-column-ref{max-width:100px;text-align:right;flex-shrink:0}.export-column-ref span{display:block}.export-empty{padding:22px;font-size:13px;color:#697386}
+.export-missing{margin:10px 0 0}.export-entire{border-top:1px solid #e1e8ed;padding-top:12px;margin-top:12px}.export-entire summary{cursor:pointer;font-size:12px}
+@media(max-width:680px){dialog.export-dialog .dialog-body{padding:14px}.export-filters{grid-template-columns:1fr}.export-selection-tools{align-items:flex-start}.export-group-head{align-items:flex-start}.export-options{max-height:35vh}.export-column{padding:9px}.export-column-ref{max-width:70px}.export-dialog .dialog-foot .button{flex:1}}
