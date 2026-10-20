@@ -253,4 +253,9 @@ export function exportArchiveCsv(result,selectedIds=null){
  const {source,indices}=selection[0];
  return csvRows([indices.map(i=>archiveLabel(source.columns[i])),...source.rows.map(values=>indices.map(i=>values[i]))]);
 }
-export function download(data,name,type){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+export function download(data,name,type){
+ const url=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');
+ a.href=url;a.download=name;a.hidden=true;document.body?.appendChild(a);a.click();
+ // Keep the object URL alive while the browser accepts the download.
+ setTimeout(()=>{a.remove?.();URL.revokeObjectURL(url);},30000);
+}
