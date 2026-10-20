@@ -1,0 +1,40 @@
+/* Department catalog: compact, ordinary scrolling rows. */
+.catalog-controls{display:grid;grid-template-columns:minmax(260px,1.6fr) minmax(220px,1fr) minmax(175px,.65fr);gap:16px;padding:18px 20px;background:#fff;border:1px solid var(--line);border-radius:7px}
+.catalog-controls .field{min-width:0;margin:0}
+.catalog-controls select{padding-right:28px;text-overflow:ellipsis}
+.catalog-count{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-height:54px;color:#556575;font-size:12px}
+.catalog-count>span{margin-left:12px;color:var(--muted)}
+.catalog-count .button{margin-left:auto}
+.department-section{background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:18px}
+.department-heading{padding:14px 18px;display:flex;align-items:center;gap:12px;background:#f7f8fa;border-bottom:1px solid var(--line)}
+.department-heading h3{font-size:15px;font-weight:600;line-height:1.45;margin:0;color:#293b4b}
+.department-heading h3>span{color:#6d7e8e;font-weight:400}
+.department-heading>.counter{margin-left:auto;flex-shrink:0}
+.catalog-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.catalog-table th,.catalog-table td{padding:12px 15px;text-align:left;border-bottom:1px solid #e5e9ed;vertical-align:middle}
+.catalog-table thead th{background:#fafbfc;color:#677584;font-size:11px;font-weight:500;position:static}
+.catalog-table tbody th{font-weight:400}
+.catalog-table tr:last-child th,.catalog-table tr:last-child td{border-bottom:0}
+.catalog-table tbody tr:hover{background:#f7fafc}
+.catalog-table .catalog-number{width:45px;text-align:center;color:#778493;padding-left:8px;padding-right:8px}
+.catalog-table .catalog-state{width:178px}
+.catalog-table .catalog-action{width:146px;text-align:right}
+.catalog-table .catalog-action .button{font-weight:500}
+.catalog-name{border:0;padding:0;background:transparent;color:#253d4f;text-align:left;line-height:1.5;font-size:13px;cursor:pointer}
+.catalog-name:hover{color:var(--blue);text-decoration:underline}
+.catalog-status{display:inline-flex;align-items:center;gap:6px;line-height:1.4;font-size:11px;color:#687789}
+.catalog-status::before{content:'';width:5px;height:5px;border-radius:50%;background:#a9b4bf;flex-shrink:0}
+.catalog-status.available{color:#006196}
+.catalog-status.available::before{background:#006196}
+.catalog-status.form,.catalog-status.reference{color:#536d81}
+.catalog-status.clarify{color:#976b22}
+.catalog-status.clarify::before{background:#bb8e41}
+.catalog-revision{display:block;color:#7d7361;font-size:10px;line-height:1.35;margin-top:3px}
+.catalog-extra-note{font-size:12px;color:var(--muted);margin:12px 18px}
+.catalog-source-note{font-size:11px;line-height:1.65;color:#7b8793;margin:16px 0}
+.catalog-files{padding-left:20px;overflow-wrap:anywhere;line-height:1.6}
+.catalog-files li+li{margin-top:7px}
+.catalog-detail-note{background:#f7f8fa;padding:12px 14px;line-height:1.6;border-left:3px solid #c9d3dc}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:1100px){.catalog-controls{grid-template-columns:1fr 210px}.catalog-department{grid-column:1/-1}.catalog-table .catalog-state{width:150px}.catalog-table th,.catalog-table td{padding:10px 12px}}
+@media(max-width:650px){.catalog-controls{grid-template-columns:1fr;padding:14px;gap:12px}.catalog-department{grid-column:auto}.catalog-count>span{margin-left:0;flex-basis:100%;order:2}.catalog-count{padding:10px 0}.catalog-table,.catalog-table tbody{display:block}.catalog-table thead{display:none}.catalog-table tbody tr{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:7px 6px;padding:12px;border-bottom:1px solid #e5e9ed}.catalog-table tbody tr:last-child{border-bottom:0}.catalog-table tr>th,.catalog-table tr>td{padding:0;border:0;width:auto}.catalog-table tr>th{grid-column:2/-1}.catalog-table tr>.catalog-number{grid-column:1;grid-row:1/3;text-align:left;padding-top:2px}.catalog-table tr>.catalog-state{grid-column:2;grid-row:2;align-self:center}.catalog-table tr>.catalog-action{grid-column:3;grid-row:2}.catalog-table .button{font-size:11px;padding:4px 7px}.catalog-name{font-size:12px}.catalog-status{font-size:10px}.department-heading{padding:12px}.department-heading h3{font-size:13px}}
