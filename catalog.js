@@ -1,6 +1,7 @@
 // Catalog ownership follows the customer's 'Список отчетов по управлениям.docx', received 20.10.2026.
 // Archive references are metadata only: customer workbook rows are never published.
 import {reports} from './data.js';
+import {archiveForms} from './archive-schemas.js';
 
 export const departments = [
   {
@@ -790,14 +791,18 @@ export const additionalReports = reports.filter(r=>!departmentReports.some(item=
  id:`extra-${r.id}`,departmentId:'additional',number:index+1,name:r.name,sourceTitle:r.name,reportId:r.id,files:[],material:'none',
  note:'Дополнительный демонстрационный отчет по модулю. Точного соответствия в перечне заказчика нет; управление не назначено.'
 }));
-export const catalogReports = [...departmentReports,...additionalReports];
+// Each Excel workbook is independently selectable, including variants of a report.
+export const catalogReports = [...departmentReports.flatMap(item=>{
+ const forms=item.departmentId==='uao'?archiveForms.filter(form=>form.uaoNumber===item.number):[];
+ if(!forms.length)return [{...item,reportId:undefined}];
+ return forms.map((form,index)=>({...item,id:`archive-${form.id}`,archiveFormId:form.id,reportId:undefined,
+  number:forms.length>1?`${item.number}.${index+1}`:item.number,
+  name:forms.length>1?(form.variantName||form.name):item.name,
+  sourceFile:form.sourceFile,files:[form.sourceFile],material:'form'}));
+}),...additionalReports];
 export const catalogGroups = [...departments,{id:'additional',name:'Дополнительные отчеты по модулям'}];
-export const catalogStatusLabels = {available:'Демо формируется',form:'Есть образец',reference:'Есть описание',missing:'Форма не приложена',clarify:'Нужно уточнение'};
-export function catalogStatus(report){
- if(report.reportId)return 'available';
- if(report.needsClarification)return 'clarify';
- return report.material==='form'?'form':report.material==='reference'?'reference':'missing';
-}
+export const catalogStatusLabels = {available:'Доступны для формирования',listed:'Остальные формы перечня'};
+export function catalogStatus(report){return report.reportId||report.archiveFormId?'available':'listed';}
 const searchable=value=>String(value??'').toLocaleLowerCase('ru').replaceAll('ё','е').replace(/\s+/g,' ').trim();
 export function filterCatalog({department='all',status='all',search=''}={}){
  const terms=searchable(search).split(' ').filter(Boolean);

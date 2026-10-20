@@ -133,4 +133,124 @@ export function exportSelectedCsv(result,scope,ids){
  const {columns,values}=selectedExport(result,scope,ids);
  return csvRows([columns.map(column=>column.label),...values]);
 }
+
+// Archive forms are already generated snapshots. Exporting never joins, sums or
+// re-filters their rows, and a selection never hides a second complete copy.
+function archiveSheets(result){
+ if(!Array.isArray(result?.sheets)||!result.sheets.length)throw new Error('В отчете нет листов для выгрузки.');
+ const sheetIds=new Set(),optionIds=new Set();
+ for(const s of result.sheets){
+  if(typeof s.id!=='string'||!s.id||sheetIds.has(s.id))throw new Error('Листы отчета должны иметь разные идентификаторы.');
+  sheetIds.add(s.id);
+  if(!Array.isArray(s.columns)||!s.columns.length||s.columns.length>16384)throw new Error('Неверный состав колонок листа отчета.');
+  const columnIds=new Set();
+  for(const c of s.columns){
+   const id=`${s.id}:${c.id}`;
+   if(typeof c.id!=='string'||!c.id||columnIds.has(c.id)||optionIds.has(id))throw new Error('Колонки листа должны иметь разные идентификаторы.');
+   columnIds.add(c.id);optionIds.add(id);
+  }
+  if(!Array.isArray(s.rows))throw new Error('В отчете отсутствуют строки листа.');
+  for(const values of s.rows){
+   if(!Array.isArray(values)||values.length!==s.columns.length)throw new Error('Количество значений строки не соответствует колонкам листа.');
+   values.forEach(archiveValue);
+  }
+ }
+ return result.sheets;
+}
+function archiveValue(value){
+ if(value==null||typeof value==='string'||typeof value==='boolean')return;
+ if(typeof value==='number'&&Number.isFinite(value))return;
+ throw new Error('В отчете есть неподдерживаемое или нечисловое значение.');
+}
+const archiveLabel=column=>column.label||column.labels?.filter(Boolean).join(' / ')||`Служебная колонка ${column.id}`;
+function archiveOptions(sheets){
+ return sheets.flatMap(s=>s.columns.map(c=>({id:`${s.id}:${c.id}`,label:archiveLabel(c),group:s.name||s.id,available:c.available!==false,sheetId:s.id,columnId:c.id})));
+}
+export function archiveColumnOptions(result){return archiveOptions(archiveSheets(result));}
+function archiveSelection(result,selectedIds){
+ const sheets=archiveSheets(result),options=archiveOptions(sheets);
+ if(selectedIds==null)return sheets.map(s=>({source:s,indices:s.columns.map((_,i)=>i)}));
+ if(!Array.isArray(selectedIds)||!selectedIds.length)throw new Error('Выберите хотя бы одну колонку для выгрузки.');
+ if(new Set(selectedIds).size!==selectedIds.length)throw new Error('Колонки выгрузки не должны повторяться.');
+ const allowed=new Set(options.map(c=>c.id));
+ if(selectedIds.some(id=>!allowed.has(id)))throw new Error('В составе выгрузки есть недоступная колонка.');
+ const chosen=new Set(selectedIds);
+ return sheets.map(s=>({source:s,indices:s.columns.flatMap((c,i)=>chosen.has(`${s.id}:${c.id}`)?[i]:[])})).filter(s=>s.indices.length);
+}
+function archiveWidths(s,indices,flat){
+ return indices.map(i=>{
+  const provided=s.widths?.[i];
+  if(typeof provided==='number'&&Number.isFinite(provided)&&provided>0)return Math.max(4,Math.min(80,provided));
+  const c=s.columns[i],labels=c.labels?.length?c.labels:[archiveLabel(c)];
+  return columnWidth({labels},flat);
+ });
+}
+function archiveHeader(s,widths){
+ const cells=s.headerCells||{},refs=Object.keys(cells);
+ if(!refs.length){const values=s.columns.map(archiveLabel);return {depth:1,rows:[row(1,values,1,heightFor(values,widths,38))]};}
+ const points=refs.map(ref=>{
+  if(!/^[A-Z]+[1-9]\d*$/.test(ref))throw new Error('Неверная координата заголовка отчета.');
+  const point=coordinates(ref);archiveValue(cells[ref]);
+  if(point.col>s.columns.length)throw new Error('Заголовок выходит за границы колонок отчета.');
+  return point;
+ });
+ const depth=s.headerDepth??Math.max(...points.map(p=>p.row));
+ if(!Number.isInteger(depth)||depth<1||depth>1048576||points.some(p=>p.row>depth))throw new Error('Неверная глубина заголовка отчета.');
+ const heights=Array(depth).fill(24),ranges=(s.merges||[]).map(archiveMerge).filter(m=>m.end.row<=depth);
+ const constraints=refs.map((ref,i)=>{
+  const start=points[i],end=ranges.find(m=>m.start.row===start.row&&m.start.col===start.col)?.end||start;
+  const width=widths.slice(start.col-1,end.col).reduce((sum,v)=>sum+v,0);
+  return {start:start.row-1,end:end.row-1,height:Math.max(24,lineCount(cells[ref],width)*14+10)};
+ }).sort((a,b)=>(a.end-a.start)-(b.end-b.start));
+ for(const c of constraints){const current=heights.slice(c.start,c.end+1).reduce((a,b)=>a+b,0);if(c.height>current){const extra=Math.ceil((c.height-current)/(c.end-c.start+1));for(let i=c.start;i<=c.end;i++)heights[i]=Math.min(409,heights[i]+extra);}}
+ const values=Array.from({length:depth},()=>Array(s.columns.length).fill(null));
+ refs.forEach((ref,i)=>values[points[i].row-1][points[i].col-1]=cells[ref]);
+ return {depth,rows:values.map((v,i)=>row(i+1,v,1,heights[i]))};
+}
+function archiveMerge(ref){
+ if(typeof ref!=='string'||!/^([A-Z]+[1-9]\d*):([A-Z]+[1-9]\d*)$/.test(ref))throw new Error('Неверное объединение ячеек отчета.');
+ const [start,end]=ref.split(':').map(coordinates);
+ if(start.row>end.row||start.col>end.col)throw new Error('Неверные границы объединения ячеек отчета.');
+ return {ref,start,end};
+}
+function archiveSheetXml(s,indices,flat){
+ const widths=archiveWidths(s,indices,flat),values=s.rows.map(values=>indices.map(i=>values[i]));
+ let rows,depth,merges=[],filter='';
+ if(flat||!Object.keys(s.headerCells||{}).length){
+  depth=1;rows=tableRows([indices.map(i=>archiveLabel(s.columns[i])),...values],widths);filter=`A1:${colName(indices.length)}${values.length+1}`;
+ }else{
+  const layout=archiveHeader(s,widths);depth=layout.depth;
+  merges=(s.merges||[]).map(archiveMerge).map(m=>{
+   if(m.end.col>indices.length||m.end.row>values.length+depth)throw new Error('Объединение ячеек выходит за границы отчета.');
+   return m.ref;
+  });
+  rows=layout.rows.join('')+values.map((v,i)=>row(i+depth+1,v,0,heightFor(v,widths))).join('');
+ }
+ if(values.length+depth>1048576)throw new Error('Количество строк превышает ограничение Excel.');
+ return sheet(rows,{merges,widths,filter,lastCol:indices.length,lastRow:values.length+depth});
+}
+function archiveSheetName(value,index,used){
+ const clean=String(value||`Лист ${index+1}`).replace(/[\\/\?*\[\]:\u0000-\u001f]/g,' ').trim().replace(/^'+|'+$/g,'').trim()||`Лист ${index+1}`;
+ const trim=(s,n)=>{const value=s.slice(0,n);return /[\uD800-\uDBFF]$/.test(value)?value.slice(0,-1):value;};
+ let name=trim(clean,31),suffix=1;
+ while(used.has(name.toLocaleLowerCase('ru'))){const ending=` (${++suffix})`;name=trim(clean,31-ending.length)+ending;}
+ used.add(name.toLocaleLowerCase('ru'));return name;
+}
+export function exportArchiveXlsx(result,selectedIds=null){
+ const selection=archiveSelection(result,selectedIds),used=new Set(),flat=selectedIds!=null;
+ const sheets=selection.map(({source,indices},i)=>({name:archiveSheetName(source.name,i,used),xml:archiveSheetXml(source,indices,flat)}));
+ const config=result.config||{},date=new Date(result.createdAt),params=[['Параметр','Значение'],['Отчет',config.name||'Отчет'],['Источник','Вымышленные демонстрационные записи. API модулей не подключены.'],['Модули',(config.sources||[]).join(', ')],['Вид выгрузки',flat?'Выбранные колонки':'Все листы и колонки формы'],['Сформирован',Number.isNaN(date.getTime())?'':date.toLocaleString('ru-RU',{timeZone:'Asia/Almaty'})],['Записей',result.recordCount??''],['Объектов',result.objectCount??''],...Object.entries(config.filters||{}).filter(([,v])=>v!==''&&v!==false&&v!=null).map(([key,value])=>[filterNames[key]||key,String(value)]),['Нет данных','Источник показателя не подключен либо значение отсутствует. Это не ноль.'],['Нулевые значения','Ноль означает известное нулевое значение.']];
+ selection.forEach(({source,indices},i)=>{
+  params.push([`Лист ${i+1}`,sheets[i].name],[`Строк на листе ${i+1}`,source.rows.length]);
+  if(flat)indices.forEach((columnIndex,j)=>params.push([`Колонка ${i+1}.${j+1}`,archiveLabel(source.columns[columnIndex])]));
+ });
+ sheets.push({name:archiveSheetName('Параметры',sheets.length,used),xml:sheet(tableRows(params,[38,100]),{widths:[38,100],lastCol:2,lastRow:params.length})});
+ return pack(sheets);
+}
+export function exportArchiveCsv(result,selectedIds=null){
+ const selection=archiveSelection(result,selectedIds);
+ if(selection.length!==1)throw new Error('CSV содержит только один лист. Выберите колонки одного листа или скачайте Excel со всеми листами.');
+ const {source,indices}=selection[0];
+ return csvRows([indices.map(i=>archiveLabel(source.columns[i])),...source.rows.map(values=>indices.map(i=>values[i]))]);
+}
 export function download(data,name,type){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
