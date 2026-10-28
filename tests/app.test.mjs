@@ -20,7 +20,7 @@ test('catalog, ready form, builder, template, history, analytics and stale resul
  const input=(id,value)=>listeners.get('input')({target:{id,value,dataset:{}}});
  const page=()=>node('#page').innerHTML;
  await import('../app.js');assert.match(page(),/Отчеты по управлениям/);assert.match(page(),/Итоги аудиторской деятельности в разрезе дел АБП/);
- change({},'legal',false,'catalog-department');assert.match(node('#catalog-results').innerHTML,/Юридическое управление/);assert.doesNotMatch(node('#catalog-results').innerHTML,/data-action="open-report"/);
+ click('department',{id:'legal'});assert.match(page(),/Юридическое управление/);assert.doesNotMatch(page(),/data-action="open-report"/);
  click('catalog-details',{id:'legal-01'});assert.match(node('#dialog').innerHTML,/Форма включена в перечень/);assert.doesNotMatch(node('#dialog').innerHTML,/data-action="open-report"/);click('close-dialog');
  click('catalog-reset');assert.match(page(),/Найдено: <strong>81/);input('catalog-search','ЭГА.xlsx');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>1/);
  click('catalog-reset');change({},'available',false,'catalog-status');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>27/);

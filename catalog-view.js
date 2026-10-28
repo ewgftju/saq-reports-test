@@ -3,7 +3,7 @@ import {archiveForms} from './archive-schemas.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const option=(id,label,current)=>`<option value="${esc(id)}" ${id===current?'selected':''}>${esc(label)}</option>`;
 export function catalogControls({department,status,search}){
- return `<div class="catalog-controls"><label class="field catalog-department"><span>Управление</span><select id="catalog-department">${option('all','Все управления',department)}${catalogGroups.map(d=>option(d.id,`${d.number?d.number+'. ':''}${d.name} (${catalogReports.filter(r=>r.departmentId===d.id).length})`,department)).join('')}</select></label><label class="field catalog-search-field"><span>Поиск отчета</span><input type="search" id="catalog-search" placeholder="Название отчета или файла" value="${esc(search)}"></label><label class="field"><span>Доступность</span><select id="catalog-status">${option('all','Все отчеты',status)}${Object.entries(catalogStatusLabels).map(([id,label])=>option(id,label,status)).join('')}</select></label></div>`;
+ return `<div class="catalog-controls"><label class="field catalog-search-field"><span>Поиск отчета</span><input type="search" id="catalog-search" placeholder="Название отчета или файла" value="${esc(search)}"></label><label class="field"><span>Доступность</span><select id="catalog-status">${option('all','Все отчеты',status)}${Object.entries(catalogStatusLabels).map(([id,label])=>option(id,label,status)).join('')}</select></label></div>`;
 }
 export function renderCatalogResults(filters){
  const list=filterCatalog(filters);
