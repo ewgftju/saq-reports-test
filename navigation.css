@@ -1,0 +1,195 @@
+/* Load after the shared SAQ shell. Department labels retain their full names. */
+.reports-shell #reports-menu[hidden] {
+  display: none !important;
+}
+
+.reports-shell .saq-brand-row {
+  flex: 0 0 auto;
+}
+
+.reports-shell .saq-navigation {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.reports-shell .department-navigation {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reports-shell .department-nav-caption {
+  margin: 12px 10px 4px;
+  color: #8a94a6;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.reports-shell .saq-module-menu .department-nav-button {
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 9px;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.reports-shell .department-nav-label {
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.reports-shell .department-nav-number {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  color: #6c8190;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.reports-shell .department-nav-button.active .department-nav-number {
+  color: inherit;
+}
+
+.reports-shell .saq-module-menu .department-nav-additional {
+  margin-top: 7px;
+}
+
+.reports-shell .saq-module-menu .department-nav-button:focus-visible {
+  outline: 2px solid #006196;
+  outline-offset: -2px;
+}
+
+.reports-shell .saq-module-menu .department-nav-button.active:focus-visible {
+  outline-color: #d5edfb;
+}
+
+@media screen and (min-width: 861px) {
+  .reports-shell .saq-sidebar.collapsed .department-nav-caption {
+    display: none;
+  }
+
+  .reports-shell .saq-sidebar.collapsed .department-nav-button {
+    align-items: center;
+    justify-content: center;
+    padding: 9px 5px;
+  }
+}
+
+@media screen and (min-width: 621px) and (max-width: 860px) {
+  .reports-shell .department-nav-caption {
+    display: none;
+  }
+
+  .reports-shell .saq-module-menu .department-nav-button {
+    align-items: center;
+    justify-content: center;
+    padding: 9px 5px;
+  }
+}
+
+@media screen and (max-width: 620px) {
+  .reports-shell .rail.saq-sidebar {
+    height: 108px !important;
+    justify-content: flex-start;
+    padding: 5px;
+  }
+
+  .reports-shell .saq-navigation {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0;
+  }
+
+  /* Keep the disclosure reachable even after collapsing on a wider screen. */
+  .reports-shell .saq-module-button {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    flex: 0 0 78px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 78px;
+    min-width: 78px;
+    height: 92px;
+    margin-right: 4px;
+    padding: 8px 5px;
+    border: 1px solid #003b5c;
+    border-radius: 7px;
+    font-size: 10px;
+    line-height: 13px;
+    text-align: center;
+  }
+
+  .reports-shell .saq-module-button > span:not(.saq-module-mark) {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .reports-shell .saq-module-button > b {
+    display: block;
+    color: #fff;
+    font-size: 12px;
+    line-height: 9px;
+  }
+
+  .reports-shell .saq-module-menu,
+  .reports-shell .department-navigation {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    gap: 4px;
+    padding: 0;
+  }
+
+  .reports-shell .department-nav-caption {
+    display: none;
+  }
+
+  .reports-shell .saq-module-menu button,
+  .reports-shell .saq-module-menu .department-nav-button {
+    flex: 0 0 208px;
+    width: 208px;
+    max-width: none;
+    height: 92px;
+    min-height: 92px;
+    margin: 0;
+    padding: 8px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 8px;
+    line-height: 13px;
+    font-size: 11px;
+  }
+
+  .reports-shell .saq-module-menu button > span {
+    display: block;
+    white-space: normal;
+  }
+
+  .reports-shell .saq-module-menu .department-nav-all,
+  .reports-shell .saq-module-menu > button {
+    flex-basis: 120px;
+    width: 120px;
+  }
+
+  .reports-shell > .content {
+    padding-bottom: 142px;
+  }
+}
