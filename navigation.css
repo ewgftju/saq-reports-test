@@ -142,12 +142,6 @@
     flex: 0 0 auto;
   }
 
-  .reports-shell .saq-module-button > b {
-    display: block;
-    color: #fff;
-    font-size: 12px;
-    line-height: 9px;
-  }
 
   .reports-shell .saq-module-menu,
   .reports-shell .department-navigation {
@@ -192,4 +186,35 @@
   .reports-shell > .content {
     padding-bottom: 142px;
   }
+}
+
+/* Common destinations remain available independently of the department disclosure. */
+.reports-shell .saq-independent-menu {
+  margin-top: 6px;
+  padding-top: 4px;
+}
+.reports-shell .saq-module-chevron {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-left: auto;
+  color: rgba(255,255,255,.9);
+  transition: transform .16s ease;
+}
+.reports-shell .saq-module-button[aria-expanded="true"] .saq-module-chevron {
+  transform: rotate(180deg);
+}
+@media (min-width: 861px) {
+  .reports-shell .saq-sidebar.collapsed .saq-module-chevron { display: none; }
+}
+@media (min-width: 621px) and (max-width: 860px) {
+  .reports-shell .saq-module-chevron { display: none; }
+}
+@media (max-width: 620px) {
+  .reports-shell .saq-independent-menu { margin: 0; padding: 0; }
+  .reports-shell .saq-module-chevron { width: 14px; height: 14px; flex-basis: 14px; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reports-shell .saq-module-chevron { transition: none; }
 }
