@@ -16,5 +16,5 @@ export function renderDepartmentNavigation({department='all',view='catalog'}={})
   const active=inCatalog&&department===id;
   return `<button type="button" class="department-nav-button ${extra}${active?' active':''}" data-action="department" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}"${active?' aria-current="page"':''}>${mark}<span class="department-nav-label">${esc(label)}</span></button>`;
  };
- return `<div class="department-navigation">${button('all','Все отчеты',allIcon,'department-nav-all')}<p class="department-nav-caption">Управления</p>${catalogGroups.map(d=>button(d.id,d.name,d.number?`<b class="department-nav-number" aria-hidden="true">${d.number}</b>`:extraIcon,d.number?'':'department-nav-additional')).join('')}</div>`;
+ return `<div class="department-navigation"><p class="department-nav-caption">Управления</p>${catalogGroups.map(d=>button(d.id,d.name,d.number?`<b class="department-nav-number" aria-hidden="true">${d.number}</b>`:extraIcon,d.number?'':'department-nav-additional')).join('')}${button('all','Все отчеты',allIcon,'department-nav-all')}</div>`;
 }
