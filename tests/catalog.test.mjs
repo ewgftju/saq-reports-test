@@ -12,10 +12,10 @@ test('customer register retains ten departments and 72 numbered positions',()=>{
  assert.deepEqual(catalogReports.filter(r=>r.departmentId==='additional').map(r=>r.reportId),['sur','sva','prof','objections']);
 });
 
-test('all 31 active Excel forms and their 37 sheets have a distinct generating catalog entry',()=>{
- assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),37);
+test('all 32 active Excel forms and their 41 sheets have a distinct generating catalog entry',()=>{
+ assert.equal(archiveForms.length,32);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),41);
  const entries=catalogReports.filter(r=>r.archiveFormId);
- assert.equal(entries.length,31);
+ assert.equal(entries.length,32);
  assert.deepEqual(entries.map(r=>r.archiveFormId).sort(),archiveForms.map(f=>f.id).sort());
  assert.deepEqual(entries.map(r=>r.sourceFile).sort(),archiveForms.map(f=>f.sourceFile).sort());
  for(const r of entries){assert.equal(r.departmentId,formDepartment(archiveForms.find(f=>f.id===r.archiveFormId)));assert.equal(catalogStatus(r),'available');}
@@ -27,7 +27,7 @@ test('all 31 active Excel forms and their 37 sheets have a distinct generating c
 });
 
 test('catalog filters departments, availability and source filenames',()=>{
- assert.equal(filterCatalog().length,81);assert.equal(filterCatalog({status:'available'}).length,35);
+ assert.equal(filterCatalog().length,81);assert.equal(filterCatalog({status:'available'}).length,36);
  assert.equal(filterCatalog({department:'uao',status:'available'}).length,19);
  assert.deepEqual(filterCatalog({search:'  УаО  ПРИЛОЖЕНИЕ 3 АП0731173356  '}).map(r=>r.archiveFormId),['uao-administrative']);
  assert.deepEqual(filterCatalog({search:'Отчет_по_видам_нарушений'}).map(r=>r.archiveFormId),['uao-violation-types']);
@@ -37,7 +37,7 @@ test('catalog filters departments, availability and source filenames',()=>{
 
 test('compact rows expose every Excel form without internal clarification notes',()=>{
  const html=renderCatalogResults({department:'all'});
- assert.equal((html.match(/data-action="open-archive"/g)||[]).length,62);
+ assert.equal((html.match(/data-action="open-archive"/g)||[]).length,64);
  assert.equal((html.match(/data-action="open-report"/g)||[]).length,8);
  assert.doesNotMatch(html,/report-card|report-grid|Нужно уточнение|расширенная редакция|data-action="catalog-details"/);
  assert.match(html,/Управление камерального контроля/);

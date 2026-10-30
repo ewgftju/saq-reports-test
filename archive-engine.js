@@ -4,6 +4,7 @@ import {archiveDemoFacts, archiveMeasureTypes} from './archive-demo-data.js';
 import {filterRecords} from './engine.js';
 import {generateReceivedReport,receivedReportDescriptions} from './received-engine.js';
 import {generateProfessionalReport,professionalReportDescriptions} from './professional-engine.js';
+import {generateCooperationReport,cooperationReportDescriptions} from './cooperation-engine.js';
 
 export const ARCHIVE_MISSING='Нет данных';
 const formById=new Map(archiveForms.map(f=>[f.id,f]));
@@ -19,7 +20,7 @@ const provenance=k=>!k?'unavailable':baseKeys.has(k)?'existing-demo-record':'dem
 export function archiveConfig(formId,filters=defaultFilters()){
  const form=formById.get(formId);if(!form)throw new Error('Неизвестная архивная форма.');
  const normalized={...defaultFilters(),...filters};if(form.uaoNumber===20)normalized.format='Электронный';
- const description=receivedReportDescriptions[form.id]||professionalReportDescriptions[form.id]||{};
+ const description=receivedReportDescriptions[form.id]||professionalReportDescriptions[form.id]||cooperationReportDescriptions[form.id]||{};
  return {name:form.name,dataset:'archive',archiveFormId:form.id,reportId:form.id,filters:normalized,sources:form.sources||['ВГА'],group:'none',columns:[],...description};
 }
 export function validateArchiveFilters(filters){
@@ -180,6 +181,7 @@ export function generateArchiveReport(formId,filters=defaultFilters(),sourceReco
  const form=formById.get(formId),asOf=form.uaoNumber===21;
  if(form.engine==='received')return generateReceivedReport(form,config,sourceRecords);
  if(form.engine==='professional')return generateProfessionalReport(form,config,sourceRecords);
+ if(form.engine==='cooperation')return generateCooperationReport(form,config,sourceRecords);
  const effectiveFilters=asOf?{...config.filters,from:'0001-01-01'}:config.filters;
  const filtered=filterRecords(deduplicate(sourceRecords),{sources:['ВГА'],filters:effectiveFilters});
  const items=filtered.map(r=>enrich(r,config.filters.from,config.filters.to,sourceRecords===records));
