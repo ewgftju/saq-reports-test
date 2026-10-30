@@ -1,5 +1,5 @@
 import {departments,catalogReports,catalogGroups,catalogStatusLabels,filterCatalog} from './catalog.js';
-import {archiveForms} from './archive-schemas.js';
+import {archiveForms} from './form-registry.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const option=(id,label,current)=>`<option value="${esc(id)}" ${id===current?'selected':''}>${esc(label)}</option>`;
 export function catalogControls({department,status,search}){
@@ -7,7 +7,7 @@ export function catalogControls({department,status,search}){
 }
 export function renderCatalogResults(filters){
  const list=filterCatalog(filters);
- const summary=`<div class="catalog-count" role="status">Найдено: <strong>${list.length}</strong><span>${archiveForms.length} Excel-формы · ${departments.length} управлений</span><button type="button" class="button small ghost" data-action="catalog-reset">Показать все</button></div>`;
+ const summary=`<div class="catalog-count" role="status">Найдено: <strong>${list.length}</strong><span>Excel-форм: ${archiveForms.length} · ${departments.length} управлений</span><button type="button" class="button small ghost" data-action="catalog-reset">Показать все</button></div>`;
  if(!list.length)return summary+`<div class="empty"><h3>Отчеты не найдены</h3><p>Измените название, управление или доступность.</p></div>`;
  return summary+catalogGroups.map(d=>{
   const rows=list.filter(r=>r.departmentId===d.id);if(!rows.length)return '';

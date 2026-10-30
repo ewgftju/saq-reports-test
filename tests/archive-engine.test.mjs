@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {records,defaultFilters} from '../data.js';
-import {archiveForms} from '../archive-schemas.js';
+import {archiveForms} from '../form-registry.js';
 import {archiveDemoFacts} from '../archive-demo-data.js';
 import {generateArchiveReport,archiveConfig,validateArchiveFilters,archiveCoverage,ARCHIVE_MISSING as missing} from '../archive-engine.js';
 const base=records.filter(r=>r.module==='ВГА');
@@ -9,8 +9,8 @@ const cell=(sheet,row,letter)=>sheet.rows[row][sheet.columns.findIndex(c=>c.id==
 const find=(sheet,id)=>sheet.rows.findIndex(row=>row.includes(id));
 const report=(id,filters=defaultFilters(),source)=>generateArchiveReport(id,filters,source).sheets[0];
 
-test('all 23 source forms generate all 29 sheets with their full original column structure',()=>{
- assert.equal(archiveForms.length,23);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),29);
+test('all active source forms generate every sheet with their full original column structure',()=>{
+ assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),38);
  for(const form of archiveForms){const output=generateArchiveReport(form.id);assert.equal(output.sheets.length,form.sheets.length);assert.deepEqual(output.config,archiveConfig(form.id));
   for(const [i,sheet]of output.sheets.entries()){assert.equal(sheet.columns.length,form.sheets[i].columnCount);assert.ok(sheet.rows.length>0,form.id);assert.ok(sheet.columns.every(c=>c.label));assert.ok(sheet.rows.every(r=>r.length===sheet.columns.length));assert.ok(sheet.rows.flat().every(v=>v===null||typeof v==='string'||typeof v==='number'&&Number.isFinite(v)));}
  }
@@ -73,10 +73,9 @@ test('rating keeps static rules, leaves scores and rank unknown, and supplies on
  assert.equal(cell(indicators,countRow,akmola.id),base.filter(r=>r.region==='Акмолинская область').length);
 });
 test('plans, desk-control data, judicial amounts and unclassified budget principles never reuse general totals',()=>{
- const op=report('uao-operplan');for(const c of ['F','G','P','Q','T','V','W','X','Y','Z','AA','AB','AC'])assert.ok(op.rows.every((_,i)=>cell(op,i,c)===missing));
  const vga=report('uao-vga');for(const c of ['W','X','HY','IC','ID'])assert.ok(vga.rows.every((_,i)=>cell(vga,i,c)===missing));
  const principles=report('uao-budget-principles');assert.ok(principles.rows.every(r=>r.slice(2).every(v=>v===missing)));
- const zero={...base[0],orders:0,executed:0};assert.equal(cell(report('uao-operplan-orders',defaultFilters(),[zero]),0,'F'),missing);
+ for(const id of ['uao-procurement','uao-operplan','uao-operplan-orders','uao-operplan-violations'])assert.throws(()=>generateArchiveReport(id),/Неизвестная архивная форма/);
 });
 test('coverage explicitly separates existing demo fields, new illustrative fixtures and unavailable sources',()=>{
  const coverage=archiveCoverage(),vga=coverage.find(f=>f.id==='uao-vga').sheets[0].columns;

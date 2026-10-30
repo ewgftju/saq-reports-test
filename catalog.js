@@ -1,7 +1,7 @@
 // Catalog ownership follows the customer's 'Список отчетов по управлениям.docx', received 20.10.2026.
 // Archive references are metadata only: customer workbook rows are never published.
 import {reports} from './data.js';
-import {archiveForms} from './archive-schemas.js';
+import {archiveForms,formDepartment,formNumber} from './form-registry.js';
 
 export const departments = [
   {
@@ -343,6 +343,24 @@ export const departmentReports = [
     "material": "none"
   },
   {
+    "id": "coordination-20",
+    "departmentId": "coordination",
+    "number": 20,
+    "name": "Полугодовой перечень субъектов профилактического контроля (RU/KZ)",
+    "sourceTitle": "Полугодовой перечень субъектов профилактического контроля (RU/KZ)",
+    "files": [],
+    "material": "form"
+  },
+  {
+    "id": "coordination-21",
+    "departmentId": "coordination",
+    "number": 21,
+    "name": "Информация по исполнению перечня профилактического контроля",
+    "sourceTitle": "Информация по исполнению перечня профилактического контроля",
+    "files": [],
+    "material": "form"
+  },
+  {
     "id": "uao-01",
     "departmentId": "uao",
     "number": 1,
@@ -466,17 +484,6 @@ export const departmentReports = [
     "material": "form"
   },
   {
-    "id": "uao-11",
-    "departmentId": "uao",
-    "number": 11,
-    "sourceTitle": "Отчет по государственным закупкам",
-    "name": "Отчет по государственным закупкам",
-    "files": [
-      "УАО/Отчет_по_государственным_закупкам.xlsx"
-    ],
-    "material": "form"
-  },
-  {
     "id": "uao-12",
     "departmentId": "uao",
     "number": 12,
@@ -522,22 +529,6 @@ export const departmentReports = [
     ],
     "material": "form",
     "note": "Два почти одинаковых варианта Excel и порядок оценки. Не выбирать автоматически актуальную редакцию: есть различия текста."
-  },
-  {
-    "id": "uao-16",
-    "departmentId": "uao",
-    "number": 16,
-    "sourceTitle": "Информация по исполнению операционного плана за_ (в ексел, отчетные данные)",
-    "name": "Информация по исполнению операционного плана",
-    "files": [
-      "УАО/16.Информация по исполнению опер плана.xls",
-      "УАО/Оперплан/отчетность по Опер плану нарушения.doc",
-      "УАО/Оперплан/отчетность по Опер плану нарушения.xls",
-      "УАО/Оперплан/отчетность по Опер плану предписания.doc",
-      "УАО/Оперплан/отчетность по Опер плану предписания.xls"
-    ],
-    "material": "form",
-    "note": "Основной отчет и две детализации — по финансовым нарушениям и по предписаниям (каждая в DOC и XLS)."
   },
   {
     "id": "uao-17",
@@ -616,11 +607,11 @@ export const departmentReports = [
     "id": "uao-23",
     "departmentId": "uao",
     "number": 23,
-    "sourceTitle": "Дорожная карта по реализации плана развития Министерства финансов Республики Казахстан на 2023-2027 годы",
-    "name": "Дорожная карта по реализации плана развития Министерства финансов на 2023–2027 годы",
+    "sourceTitle": "Отчет по исполнению плана развития МФ на 2026-2030 годы",
+    "name": "Отчет по исполнению плана развития МФ на 2026-2030 годы",
     "files": [],
     "material": "none",
-    "note": "Форма дорожной карты на 2023–2027 годы в архиве не найдена."
+    "note": "Название обновлено по замечанию заказчика от 30.10.2026. Образец новой формы не приложен."
   },
   {
     "id": "uao-24",
@@ -793,12 +784,12 @@ export const additionalReports = reports.filter(r=>!departmentReports.some(item=
 }));
 // Each Excel workbook is independently selectable, including variants of a report.
 export const catalogReports = [...departmentReports.flatMap(item=>{
- const forms=item.departmentId==='uao'?archiveForms.filter(form=>form.uaoNumber===item.number):[];
+ const forms=archiveForms.filter(form=>formDepartment(form)===item.departmentId&&formNumber(form)===item.number);
  if(!forms.length)return [{...item,reportId:undefined}];
  return forms.map((form,index)=>({...item,id:`archive-${form.id}`,archiveFormId:form.id,reportId:undefined,
   number:forms.length>1?`${item.number}.${index+1}`:item.number,
-  name:forms.length>1?(form.variantName||form.name):item.name,
-  sourceFile:form.sourceFile,files:[form.sourceFile],material:'form'}));
+  name:form.engine||forms.length>1?(form.variantName||form.name):item.name,
+  sourceFile:form.sourceFile,files:form.sourceFiles||[form.sourceFile],material:'form'}));
 }),...additionalReports];
 export const catalogGroups = [...departments,{id:'additional',name:'Дополнительные отчеты по модулям'}];
 export const catalogStatusLabels = {available:'Доступны для формирования',listed:'Остальные формы перечня'};

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {archiveForms} from '../archive-schemas.js';
+import {archiveForms,formDepartment} from '../form-registry.js';
+import {departmentTitle} from '../navigation.js';
 import {colName} from '../export.js';
 
 test('all archive forms generate from the catalog and export fully without opening field configuration',async()=>{
@@ -20,6 +21,7 @@ test('all archive forms generate from the catalog and export fully without openi
   for(const form of archiveForms){
    const before=downloads.length;
    click('open-archive',{id:form.id});assert.equal(location.hash,'#report');
+   assert.ok(page().includes(departmentTitle(formDepartment(form))),form.id+' department breadcrumb');
    click('generate');assert.match(page(),/Результат формирования/,form.id);
    assert.doesNotMatch(page(),/role="alert"|Нужно уточнение/,form.id);
    assert.match(page(),/Выгрузить всё/);assert.match(page(),/Настроить выгрузку/);

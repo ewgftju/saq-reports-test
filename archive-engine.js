@@ -1,7 +1,9 @@
 import {records, defaultFilters} from './data.js';
-import {archiveForms} from './archive-schemas.js';
+import {archiveForms} from './form-registry.js';
 import {archiveDemoFacts, archiveMeasureTypes} from './archive-demo-data.js';
 import {filterRecords} from './engine.js';
+import {generateReceivedReport,receivedReportDescriptions} from './received-engine.js';
+import {generateProfessionalReport,professionalReportDescriptions} from './professional-engine.js';
 
 export const ARCHIVE_MISSING='Нет данных';
 const formById=new Map(archiveForms.map(f=>[f.id,f]));
@@ -17,7 +19,8 @@ const provenance=k=>!k?'unavailable':baseKeys.has(k)?'existing-demo-record':'dem
 export function archiveConfig(formId,filters=defaultFilters()){
  const form=formById.get(formId);if(!form)throw new Error('Неизвестная архивная форма.');
  const normalized={...defaultFilters(),...filters};if(form.uaoNumber===20)normalized.format='Электронный';
- return {name:form.name,dataset:'archive',archiveFormId:form.id,reportId:form.id,filters:normalized,sources:['ВГА'],group:'none',columns:[]};
+ const description=receivedReportDescriptions[form.id]||professionalReportDescriptions[form.id]||{};
+ return {name:form.name,dataset:'archive',archiveFormId:form.id,reportId:form.id,filters:normalized,sources:form.sources||['ВГА'],group:'none',columns:[],...description};
 }
 export function validateArchiveFilters(filters){
  const f=filters||{};
@@ -175,6 +178,8 @@ function matrixSheet(form,sheet,items){
 export function generateArchiveReport(formId,filters=defaultFilters(),sourceRecords=records){
  const config=archiveConfig(formId,filters),error=validateArchiveFilters(config.filters);if(error)throw new Error(error);
  const form=formById.get(formId),asOf=form.uaoNumber===21;
+ if(form.engine==='received')return generateReceivedReport(form,config,sourceRecords);
+ if(form.engine==='professional')return generateProfessionalReport(form,config,sourceRecords);
  const effectiveFilters=asOf?{...config.filters,from:'0001-01-01'}:config.filters;
  const filtered=filterRecords(deduplicate(sourceRecords),{sources:['ВГА'],filters:effectiveFilters});
  const items=filtered.map(r=>enrich(r,config.filters.from,config.filters.to,sourceRecords===records));
@@ -189,6 +194,7 @@ export function generateArchiveReport(formId,filters=defaultFilters(),sourceReco
 }
 export function archiveCoverage(){
  return archiveForms.map(form=>({id:form.id,uaoNumber:form.uaoNumber,name:form.name,sourceFile:form.sourceFile,sourceType:'Демонстрационные данные; подключение к боевой БД не проверено',asOf:form.uaoNumber===21,sheets:form.sheets.map(sheet=>{
+  if(form.engine)return {id:sheet.id,name:sheet.name,columns:sheet.columns.filter(c=>c.labels.length).map(c=>({letter:c.letter,labels:c.labels,key:null,provenance:'form-specific-demo-adapter'}))};
   if(sheet.kind==='table'){const mapping=mappingFor(form,sheet);return {id:sheet.id,name:sheet.name,columns:sheet.columns.filter(c=>c.labels.length).map(c=>({letter:c.letter,labels:c.labels,key:mapping[c.letter]||null,provenance:provenance(mapping[c.letter])}))};}
   return {id:sheet.id,name:sheet.name,kind:'matrix',indicators:sheet.rows.filter(r=>r.valueColumns.length).map(r=>({sourceRow:r.sourceRow,label:r.label,key:form.id==='uao-social'?socialMap[r.sourceRow]||null:form.id==='uao-budget-execution'?budgetMap[r.sourceRow]||null:form.uaoNumber===15&&sheet.name==='показатели'?({7:'coverage excluding financial statements/procurement',8:'financial excluding financial statements/procurement',11:'count',12:'cases with financial violations'}[r.sourceRow]||null):null,provenance:form.id==='uao-social'?provenance(socialMap[r.sourceRow]):form.id==='uao-budget-execution'&&budgetMap[r.sourceRow]?'demo-fixture':form.uaoNumber===15&&sheet.name==='показатели'&&[7,8,11,12].includes(r.sourceRow)?([11,12].includes(r.sourceRow)?'existing-demo-record':'demo-fixture'):'unavailable'}))};
  })}));
