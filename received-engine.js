@@ -140,10 +140,115 @@ function outputRows(form,items,filters){
  return rows;
 }
 
+const normalized=value=>String(value??'').toLocaleLowerCase('ru').replaceAll('ё','е').replace(/[^а-яа-ұa-z]/g,'');
+const regionAliases=[
+ ['абай','абайская','областьабай'],['акмола','акмолинская','акмолинскаяобласть'],['актобе','актюбинская','актюбинскаяобласть'],
+ ['алматинская','алматинскаяобласть'],['атырау','атырауская','атыраускаяобласть'],['вко','восточноказахстанская','восточноказахстанскаяобласть'],
+ ['жамбыл','жамбылская','жамбылскаяобласть'],['жетису','жетісу','областьжетису','областьжетісу'],['зко','западноказахстанская','западноказахстанскаяобласть'],
+ ['караганды','карагандинская','карагандинскаяобласть'],['кызылорда','кызылординская','кызылординскаяобласть'],['костанай','костанайская','костанайскаяобласть'],
+ ['мангистау','мангистауская','мангистаускаяобласть'],['павлодар','павлодарская','павлодарскаяобласть'],['ско','североказахстанская','североказахстанскаяобласть'],
+ ['туркестан','туркестанская','туркестанскаяобласть'],['улытау','ұлытау','областьулытау','областьұлытау'],['гастана','астана'],['галматы','алматы'],['гшымкент','шымкент']
+];
+const regionKey=value=>regionAliases.findIndex(aliases=>aliases.includes(normalized(value)));
+function centralKey(row){
+ const unit=normalized(row.centralUnit||row.organ);
+ if(unit==='уас'||unit==='управлениеаудитасоответствия')return 'uas';
+ if(unit==='уафо'||unit==='управлениеаудитафинансовойотчетности')return 'uafo';
+ if(unit==='уруасуафо'||unit==='ур'||unit==='управлениерисков')return 'ur';
+ if(unit==='ца'||unit==='квга'||unit.startsWith('центральныйаппарат'))return 'central';
+ return null;
+}
+function fixedSourceRows(form,sheet,items,filters){
+ const placement=sheet.sourcePlacement,layout=sheet.templateLayout;
+ const classified=items.map(item=>({item,central:centralKey(item),region:regionKey(item.region)}));
+ for(const row of classified){
+  if(row.central&&(form.id==='received-assignment-decisions'||form.id==='received-plan-monitoring'&&row.central==='central')||!row.central&&row.region<0){
+   throw new Error(`Подразделение «${row.item.organ||row.item.region||row.item.id}» не сопоставлено со строкой исходной формы.`);
+  }
+ }
+ const labelColumn=form.id==='received-assignment-decisions'?'B':'C';
+ const ordinalColumn=form.id==='received-assignment-decisions'?'A':'B';
+ const territorial=classified.filter(row=>!row.central).map(row=>row.item),central=classified.filter(row=>row.central).map(row=>row.item);
+ const entries=[];
+ for(let sourceRow=placement.bodyStart;sourceRow<=placement.bodyEnd;sourceRow++){
+  const label=layout.cells[`${labelColumn}${sourceRow}`],ordinal=layout.cells[`${ordinalColumn}${sourceRow}`];
+  const values={_sourceRow:sourceRow};
+  for(const column of placement.labelColumns){const ref=`${column}${sourceRow}`;if(Object.hasOwn(layout.cells,ref))values[column]=layout.cells[ref];}
+  let members;
+  if(label){
+   const key=regionKey(label),unit=centralKey({organ:label});
+   members=unit==='central'?central:unit?classified.filter(row=>row.central===unit).map(row=>row.item):key>=0?classified.filter(row=>!row.central&&row.region===key).map(row=>row.item):null;
+  }else if(typeof ordinal==='string'){
+   members=/по ДВГА/i.test(ordinal)?territorial:/по КВГА/i.test(ordinal)?central:items;
+   values._total=true;
+  }
+  // Preserve the sample's blank separator rows and leave a department without
+  // supplied facts blank. A fixed label must never turn missing coverage into 0.
+  if(!members?.length){values._blankData=true;entries.push(values);continue;}
+  Object.assign(values,form.id==='received-plan-monitoring'?monitoring(members,filters.to):form.id==='received-plan-summary'?summary(members):form.id==='received-electronic-rating'?electronic(members):decisions(members,filters));
+  entries.push(values);
+ }
+ return entries;
+}
+const moveRef=(reference,cutoff,offset)=>reference.replace(/([A-Z]+)(\d+)/g,(_match,column,row)=>`${column}${Number(row)>cutoff?Number(row)+offset:row}`);
+function expandVariableLayout(layout,placement,dataCount){
+ const count=Math.max(dataCount,placement.dataEnd-placement.dataStart+1),offset=count-(placement.dataEnd-placement.dataStart+1);
+ if(!offset)return;
+ for(const key of ['cells','cellStyles'])layout[key]=Object.fromEntries(Object.entries(layout[key]).map(([ref,value])=>[moveRef(ref,placement.dataEnd,offset),value]));
+ layout.rowHeights=Object.fromEntries(Object.entries(layout.rowHeights).map(([row,value])=>[Number(row)>placement.dataEnd?String(Number(row)+offset):row,value]));
+ layout.merges=layout.merges.map(ref=>moveRef(ref,placement.dataEnd,offset));
+ layout.hiddenRows=(layout.hiddenRows||[]).map(row=>row>placement.dataEnd?row+offset:row);
+ for(let row=placement.dataEnd+1;row<=placement.dataEnd+offset;row++){
+  layout.rowHeights[row]=layout.rowHeights[placement.dataEnd];
+  for(let col=0;col<layout.columnCount;col++){
+   let number=col+1,letter='';for(;number;number=Math.floor((number-1)/26))letter=String.fromCharCode(65+(number-1)%26)+letter;
+   layout.cellStyles[`${letter}${row}`]=layout.cellStyles[`${letter}${placement.dataEnd}`];
+  }
+ }
+ layout.rowCount+=offset;
+ if(layout.printArea)layout.printArea=layout.printArea.replace(/\$([A-Z]+)\$(\d+)/g,(_match,column,row)=>`$${column}$${Number(row)>placement.dataEnd?Number(row)+offset:row}`);
+}
+const formattedDate=date=>String(date).split('-').reverse().join('.');
+function fillSourceLayout(form,sheet,values,filters){
+ const layout=structuredClone(sheet.templateLayout),placement=sheet.sourcePlacement;
+ let entries=values;
+ if(placement.dataStart){
+  const data=values.filter(row=>!row._total),total=values.find(row=>row._total);
+  expandVariableLayout(layout,placement,data.length);
+  entries=data.map((row,index)=>({...row,_sourceRow:placement.dataStart+index}));
+  const end=placement.dataStart+Math.max(data.length,placement.dataEnd-placement.dataStart+1)-1;
+  if(total){const row=placement.totalRow+Math.max(0,data.length-(placement.dataEnd-placement.dataStart+1));entries.push({...total,B:layout.cells[`B${row}`],_sourceRow:row});}
+  // Blank source slots remain in the preview as well as in the workbook.
+  for(let row=placement.dataStart+data.length;row<=end;row++)entries.splice(row-placement.dataStart,0,{_sourceRow:row,_blankData:true});
+ }
+ for(const entry of entries)for(const column of sheet.columns){
+  const ref=`${column.letter}${entry._sourceRow}`;
+  if(!column.labels.length||!Object.hasOwn(entry,column.letter))continue;
+  layout.cells[ref]=printable(entry[column.letter]);
+ }
+ const year=filters.to.slice(0,4),to=formattedDate(filters.to),from=formattedDate(filters.from);
+ if(form.id==='received-plan-monitoring'){
+  layout.cells.B4=layout.cells.B4.replace(/_+ год/,`${year} год`);
+  layout.cells.B6=layout.cells.B6.replace(/_+/,to);
+  layout.cells.D8=layout.cells.D8.replace(/20\d\d/,year);
+ }
+ if(form.id==='received-plan-summary')layout.cells.D4=Number(year);
+ if(form.id==='received-electronic-rating')layout.cells.B5=layout.cells.B5.replace(/_+/,to);
+ if(form.id==='received-quality-journal')layout.cells.F1=layout.cells.F1.replace(/с .*? по .*?г\./,`с ${from}г. по ${to}г.`);
+ if(form.id==='received-plan-detail'){
+  const region=filters.region?filters.region.replace(/ская область$/,'ской области'):null;
+  if(region)layout.cells.A4=layout.cells.A4.replace(/по _+ области/,`по ${region}`);
+  layout.cells.A4=layout.cells.A4.replace(/за\s+_+\s+_+\s+20_+ года/,`за ${from} — ${to}`);
+ }
+ return {layout,entries};
+}
+
 export function generateReceivedReport(form,config,sourceRecords=records){
  const filters={...defaultFilters(),...config.filters},items=selected(form,{...config,filters},sourceRecords);
- const values=outputRows(form,items,filters),year=Number(filters.to.slice(0,4));
+ const year=Number(filters.to.slice(0,4));let values;
  const sheets=form.sheets.map(sheet=>{
+  values=sheet.sourcePlacement.bodyStart?fixedSourceRows(form,sheet,items,filters):outputRows(form,items,filters);
+  const {layout,entries}=fillSourceLayout(form,sheet,values,filters);
   const headerCells={...sheet.headerCells};
   if(form.id==='received-plan-summary')headerCells.D1=year;
   if(form.id==='received-plan-monitoring')headerCells.D1=`Плановые аудиты на ${year} год`;
@@ -151,7 +256,7 @@ export function generateReceivedReport(form,config,sourceRecords=records){
    const labels=column.labels.map(label=>form.id==='received-plan-summary'&&/^20\d\d$/.test(label)?String(year):form.id==='received-plan-monitoring'?label.replace(/на 20\d\d год/,`на ${year} год`):label);
    return {id:column.letter,label:labels.join(' · ')||`Позиция ${column.letter}`,labels,group:labels[0]||'',available:labels.length>0};
   });
-  return {id:sheet.id,name:sheet.name,columns,headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,rows:values.map(row=>sheet.columns.map(column=>!column.labels.length||row._total&&!Object.hasOwn(row,column.letter)?null:printable(row[column.letter])))};
+  return {id:sheet.id,name:sheet.name,sourceSheetName:sheet.sourceSheetName,columns,headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,templateLayout:layout,sourceRowNumbers:entries.map(entry=>entry._sourceRow),rows:entries.map(row=>sheet.columns.map(column=>!column.labels.length||(row._total||row._blankData)&&!Object.hasOwn(row,column.letter)?null:printable(row[column.letter])))};
  });
  const resultItems=form.id==='received-quality-journal'?items.filter(item=>values.some(row=>row._caseId===item.id)):items;
  return {config:{...config,...receivedReportDescriptions[form.id],filters},createdAt:new Date().toISOString(),recordCount:resultItems.length,objectCount:new Set(resultItems.map(row=>row.bin).filter(Boolean)).size,sheets};

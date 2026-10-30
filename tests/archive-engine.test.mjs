@@ -10,7 +10,7 @@ const find=(sheet,id)=>sheet.rows.findIndex(row=>row.includes(id));
 const report=(id,filters=defaultFilters(),source)=>generateArchiveReport(id,filters,source).sheets[0];
 
 test('all active source forms generate every sheet with their full original column structure',()=>{
- assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),38);
+ assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),37);
  for(const form of archiveForms){const output=generateArchiveReport(form.id);assert.equal(output.sheets.length,form.sheets.length);assert.deepEqual(output.config,archiveConfig(form.id));
   for(const [i,sheet]of output.sheets.entries()){assert.equal(sheet.columns.length,form.sheets[i].columnCount);assert.ok(sheet.rows.length>0,form.id);assert.ok(sheet.columns.every(c=>c.label));assert.ok(sheet.rows.every(r=>r.length===sheet.columns.length));assert.ok(sheet.rows.flat().every(v=>v===null||typeof v==='string'||typeof v==='number'&&Number.isFinite(v)));}
  }

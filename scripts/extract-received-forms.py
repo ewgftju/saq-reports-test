@@ -8,10 +8,12 @@ openpyxl and xlrd are used exclusively for reading supplied workbooks.
 import argparse
 import json
 import re
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 import openpyxl
 import xlrd
 from openpyxl.utils.cell import get_column_letter, range_boundaries
+extract_source_layout = SourceFileLoader('source_layout', str(Path(__file__).with_name('source-layout.py'))).load_module().extract_source_layout
 
 MANIFEST = [
     ('Информация исполнению перечня отчеты ДВГА.xls', 'received-plan-detail', 'Исполнение Перечня объектов государственного аудита — отчет ДВГА', 'digital-risks', 2, 6, 7, 14, 'Исполнение Перечня'),
@@ -46,8 +48,7 @@ def extract(path, first, last, column_count):
     for (row, column), value in values.items():
         if value is None or value == '' or isinstance(value, str) and value.startswith('='):
             continue
-        value = clean(value)
-        if value != '':
+        if not isinstance(value, str) or value.strip():
             header[f'{get_column_letter(column)}{row - first + 1}'] = value
     merges = []
     for ref in source_merges:
@@ -71,6 +72,26 @@ def extract(path, first, last, column_count):
     return {'sourceSheetName': source_name, 'kind': 'table', 'columnCount': column_count, 'headerDepth': last - first + 1, 'headerCells': header, 'merges': sorted(merges), 'columns': columns, 'sourceHeaderRows': [first, last]}
 
 
+LAYOUTS = {
+    'received-plan-detail': {'prefixEnd': 8, 'rowCount': 13, 'dataStart': 9, 'dataEnd': 11, 'totalRow': 12, 'labelColumns': ['B'], 'fixedRows': [12]},
+    'received-plan-monitoring': {'prefixEnd': 11, 'rowCount': 47, 'labelColumns': ['B', 'C'], 'fixedRows': list(range(12, 38)), 'bodyStart': 12, 'bodyEnd': 37},
+    'received-plan-summary': {'prefixEnd': 6, 'rowCount': 28, 'labelColumns': ['B', 'C'], 'fixedRows': list(range(7, 29)), 'bodyStart': 7, 'bodyEnd': 28},
+    'received-assignment-decisions': {'prefixEnd': 11, 'rowCount': 32, 'labelColumns': ['A', 'B'], 'fixedRows': list(range(12, 33)), 'bodyStart': 12, 'bodyEnd': 32},
+    'received-electronic-rating': {'prefixEnd': 9, 'rowCount': 32, 'labelColumns': ['B', 'C'], 'fixedRows': list(range(10, 33)), 'bodyStart': 10, 'bodyEnd': 32},
+    'received-quality-journal': {'prefixEnd': 4, 'rowCount': 5, 'dataStart': 5, 'dataEnd': 5, 'labelColumns': [], 'fixedRows': []},
+}
+
+
+def source_layout(path, form_id, column_count):
+    definition = LAYOUTS[form_id]
+    allowed = [f'{get_column_letter(column)}{row}' for row in range(1, definition['prefixEnd'] + 1) for column in range(1, column_count + 1)]
+    allowed += [f'{column}{row}' for row in definition['fixedRows'] for column in definition['labelColumns']]
+    layout = extract_source_layout(path, column_count=column_count, row_count=definition['rowCount'], allowed_cells=allowed)
+    # Keep intentional line breaks/spaces in labels. Blank helper cells outside
+    # the original print/table rectangle are not report columns.
+    return layout, {key: value for key, value in definition.items() if key not in ['rowCount', 'fixedRows']}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('source', type=Path)
@@ -79,8 +100,9 @@ def main():
     forms = []
     for filename, form_id, title, department, number, first, last, column_count, sheet_name in MANIFEST:
         sheet = extract(args.source / filename, first, last, column_count)
-        forms.append({'id': form_id, 'name': title, 'sourceFile': filename, 'departmentId': department, 'catalogNumber': number, 'sources': ['ВГА'], 'engine': 'received', 'sheets': [{'id': form_id + '-s1', 'name': sheet_name, **sheet}]})
-    args.output.write_text('// Structural headers only; supplied customer observation rows are never published.\nexport const receivedForms = ' + json.dumps(forms, ensure_ascii=False, indent=2) + ';\n')
+        layout, placement = source_layout(args.source / filename, form_id, column_count)
+        forms.append({'id': form_id, 'name': title, 'sourceFile': filename, 'departmentId': department, 'catalogNumber': number, 'sources': ['ВГА'], 'engine': 'received', 'sheets': [{'id': form_id + '-s1', 'name': sheet['sourceSheetName'], **sheet, 'templateLayout': layout, 'sourcePlacement': placement}]})
+    args.output.write_text('// Structural template layout only; supplied customer observation rows are never published.\nexport const receivedForms = ' + json.dumps(forms, ensure_ascii=False, separators=(',', ':')) + ';\n')
 
 
 if __name__ == '__main__':

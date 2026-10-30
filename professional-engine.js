@@ -8,7 +8,7 @@ export const professionalReportDescriptions = {
  'prof-list-execution': {description: 'Исполнение перечня по ДВГА и категориям ПО, ОПСБ, АО, ОПИ.', reportingRule: 'По отчетной дате и явному признаку включения в перечень. Статусы исполнения и специальные основания берутся из сведений дела.'},
  'prof-audit-organizations': {description: 'Результаты профилактического контроля аудиторских организаций по 17 требованиям и исполнению предписаний.', reportingRule: 'Только дела с явно указанной категорией АО. Период — по отчетной дате.'},
  'prof-public-interest': {description: 'Результаты профилактического контроля ОПИ, нарушения по пяти требованиям и их исполнение.', reportingRule: 'Только дела с явно указанной категорией ОПИ. Период — по отчетной дате.', amountUnit: 'тыс. тенге'},
- 'prof-administrative': {description: 'Административные взыскания по аудиторским организациям и справочный лист оснований из предоставленного образца.', reportingRule: 'Только дела АО за выбранный отчетный период. Справочный лист сохраняет 22 основания из образца заказчика.'},
+ 'prof-administrative': {description: 'Административные взыскания по аудиторским организациям.', reportingRule: 'Только дела АО за выбранный отчетный период.'},
  'prof-year-comparison': {description: 'Показатели профилактического контроля и изменение к аналогичному периоду прошлого года.', reportingRule: 'Основной период и те же даты прошлого года. При нулевой или отсутствующей базе процент изменения не рассчитывается.', amountUnit: 'млн тенге'}
 };
 const numeric = value => typeof value === 'number' && Number.isFinite(value);
@@ -39,7 +39,7 @@ function previousDate(value) {
  return `${year - 1}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
 }
 function makeSheet(schema, rows, headers = schema.headerCells) {
- return {id: schema.id, name: schema.name, headerDepth: schema.headerDepth,
+ return {id: schema.id, name: schema.name, sourceSheetName: schema.sourceSheetName, headerDepth: schema.headerDepth,
   headerCells: {...headers}, merges: [...schema.merges], ...(schema.widths ? {widths: [...schema.widths]} : {}), rows,
   columns: schema.columns.map((column, index) => ({id: column.letter, labels: column.labels,
    label: column.labels.join(' · ') || `Позиция ${column.letter}`,
@@ -87,7 +87,7 @@ function opiRows(items) {
    ...Array.from({length: 4}, (_, n) => [p.requirements?.[n + 1]?.found, p.requirements?.[n + 1]?.resolved]).flat(),
    ...orders, p.remarks].map(show);
  });
- return totalRow(rows, 46, [...Array.from({length: 24}, (_, n) => n + 12), 43, 44]);
+ return totalRow(rows, 46, [...Array.from({length: 24}, (_, n) => n + 12), 43, 44], 2);
 }
 function administrativeRows(items) {
  const rows = items.map((record, index) => {
@@ -96,16 +96,24 @@ function administrativeRows(items) {
    a.applied === true ? 'Привлечен' : a.applied === false ? 'Не привлечен' : null,
    a.protocol, a.decision, a.fine, a.paid, a.receipt, p.remarks, a.executor].map(show);
  });
- return totalRow(rows, 12, [7, 8]);
+ return rows;
 }
-function executionRows(items) {
- const groups = new Map();
+function regionKey(value) {
+ const text = String(value || '').toLowerCase().replace(/ё/g, 'е');
+ const regions = [/акмол/, /актюб|актоб/, /алматин/, /атырау/, /вко|восточно/, /алматы/, /астан/, /шымкент/,
+  /жамбыл|жамбил/, /зко|западно/, /караганд/, /костан/, /кызыл/, /манг[ыи]ст|манғыст/, /абай/, /жет[іи]с/, /[ұу]лытау/,
+  /павлодар/, /ско|северо/, /туркестан|түркістан/];
+ return regions.findIndex(pattern => pattern.test(text));
+}
+function executionRows(items, schema) {
+ const groups = Array.from({length: 20}, () => []);
  for (const record of items) {
-  const key = record.organ || PROFESSIONAL_MISSING;
-  if (!groups.has(key)) groups.set(key, []);
-  groups.get(key).push(record);
+  const key = regionKey(record.region) >= 0 ? regionKey(record.region) : regionKey(record.organ);
+  if (key < 0) throw new Error('Не удалось определить ДВГА для строки перечня. Укажите регион из справочника.');
+  groups[key].push(record);
  }
- const rows = [...groups.entries()].map(([organ, group], index) => {
+ const rows = schema.regions.map(({ordinal, label}, index) => {
+  const group = groups[index];
   const classificationsKnown = group.every(record => scopes.includes(fact(record, 'scope')));
   const counts = (scope, states) => {
    if (!classificationsKnown) return Array(states.length + 1).fill(null);
@@ -113,12 +121,14 @@ function executionRows(items) {
    const statesKnown = subset.every(record => states.includes(fact(record, 'planState')));
    return [subset.length, ...states.map(state => statesKnown ? subset.filter(record => fact(record, 'planState') === state).length : null)];
   };
-  return [index + 1, organ, classificationsKnown ? group.length : null,
+  return [ordinal, label, classificationsKnown ? group.length : null,
    ...counts('ПО', ['completed', 'planned']), ...counts('ОПСБ', ['completed', 'planned']), null,
    ...counts('АО', ['completed', 'in-progress', 'planned', 'license-revoked']), null,
    ...counts('ОПИ', ['completed', 'in-progress', 'planned', 'ceased']), null].map((value, column) => [9, 15, 21].includes(column) ? null : show(value));
  });
- return totalRow(rows, 22, Array.from({length: 20}, (_, n) => n + 2).filter(n => ![9, 15, 21].includes(n)), 1);
+ const result = totalRow(rows, 22, Array.from({length: 20}, (_, n) => n + 2).filter(n => ![9, 15, 21].includes(n)));
+ result.at(-1)[0] = 'ВСЕГО';
+ return result;
 }
 function measures(items, known) {
  if (!known) return {};
@@ -150,6 +160,100 @@ function comparisonSheet(schema, items, previous, filters, currentKnown, previou
  return sheet;
 }
 
+const columnLetter = index => {
+ let name = '';
+ for (let n = index + 1; n; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + (n - 1) % 26) + name;
+ return name;
+};
+const columnIndex = letters => [...letters].reduce((value, letter) => value * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+const point = ref => ({column: ref.match(/^[A-Z]+/)[0], row: Number(ref.match(/\d+$/)[0])});
+function moveRows(layout, at, count, modelRow) {
+ if (count <= 0) return;
+ const move = ref => {const p = point(ref); return `${p.column}${p.row >= at ? p.row + count : p.row}`;};
+ const sourceStyles = Object.fromEntries(Array.from({length: layout.columnCount}, (_, index) => {
+  const column = columnLetter(index); return [column, layout.cellStyles[`${column}${modelRow}`]];
+ }));
+ for (const key of ['cells', 'cellStyles']) layout[key] = Object.fromEntries(Object.entries(layout[key]).map(([ref, value]) => [move(ref), value]));
+ const modelHeight = layout.rowHeights?.[modelRow];
+ layout.rowHeights = Object.fromEntries(Object.entries(layout.rowHeights || {}).map(([row, height]) => [Number(row) >= at ? Number(row) + count : row, height]));
+ for (let row = at; row < at + count; row++) {
+  for (const [column, style] of Object.entries(sourceStyles)) if (style != null) layout.cellStyles[`${column}${row}`] = style;
+  if (modelHeight != null) layout.rowHeights[row] = modelHeight;
+ }
+ layout.hiddenRows = (layout.hiddenRows || []).map(row => row >= at ? row + count : row);
+ layout.merges = layout.merges.map(range => range.split(':').map(move).join(':'));
+ const shiftArea = area => typeof area === 'string' ? area.replace(/\$?([A-Z]+)\$?(\d+)/g, (_, col, row) => `$${col}$${Number(row) >= at ? Number(row) + count : row}`) : area;
+ layout.printArea = Array.isArray(layout.printArea) ? layout.printArea.map(shiftArea) : shiftArea(layout.printArea);
+ layout.rowCount += count;
+}
+function put(layout, ref, value) {
+ if (value == null) {delete layout.cells[ref]; return;}
+ const style = layout.styles[layout.cellStyles[ref]], format = style?.numberFormat || '';
+ if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && /[dmy]/i.test(format) && format !== 'General') {
+  const date = Date.parse(`${value}T00:00:00Z`);
+  if (Number.isFinite(date)) value = (date - Date.UTC(1899, 11, 30)) / 86400000;
+ }
+ layout.cells[ref] = value;
+}
+function putRow(layout, row, values) {
+ values.forEach((value, index) => put(layout, `${columnLetter(index)}${row}`, value));
+}
+function attachTemplate(schema, sheet, items, filters) {
+ const layout = structuredClone(schema.templateLayout), kind = schema.kind;
+ if (kind === 'comparison') {
+  // Original bodies and merges remain literal. Only the four value columns
+  // change. Source I cells are percentage-formatted and need fractional values.
+  sheet.rows.forEach((values, index) => {
+   const row = schema.indicators[index].sourceRow;
+   for (let col = 5; col < 9; col++) {
+    let value = values[col];
+    if (col === 8 && numeric(value) && layout.styles[layout.cellStyles[`I${row}`]]?.numberFormat.includes('%')) value /= 100;
+    put(layout, `${columnLetter(col)}${row}`, value);
+   }
+  });
+  layout.cells.F1 = `за ${filters.to.slice(0, 4)} год`;
+  layout.cells.G1 = `за ${Number(filters.to.slice(0, 4)) - 1} год`;
+ } else if (kind === 'execution') {
+  sheet.rows.forEach((values, index) => putRow(layout, index + 3, values));
+  const fromMonth = Number(filters.from.slice(5, 7)), toMonth = Number(filters.to.slice(5, 7));
+  const half = fromMonth <= 6 && toMonth <= 6 ? '1-' : fromMonth >= 7 && toMonth >= 7 ? '2-' : '';
+  layout.cells.C1 = `Всего по перечню ${half}${filters.to.slice(0, 4)}`;
+  delete layout.cells.B23; // A23:B23 is the original merged total caption.
+ } else if (kind === 'ao' || kind === 'opi') {
+  const start = 6, firstTotal = kind === 'ao' ? 7 : 40, capacity = firstTotal - start;
+  const extra = Math.max(0, items.length - capacity);
+  moveRows(layout, firstTotal, extra, kind === 'ao' ? 6 : 39);
+  const detail = items.length ? sheet.rows.slice(0, items.length) : [];
+  detail.forEach((values, index) => putRow(layout, start + index, values));
+  const total = items.length ? sheet.rows.at(-1) : Array(schema.columnCount).fill(0);
+  for (const source of schema.totalRows) for (const column of source.columns) put(layout, `${column}${source.row + extra}`, total[columnIndex(column)]);
+  if (kind === 'opi') {
+   // The original region merges contain customer grouping, not observations.
+   // Rebuild only these merges for the selected records, preserving all other
+   // source merges and both source total captions (C40 / C42, shifted if needed).
+   layout.merges = layout.merges.filter(range => {
+    const [a, b] = range.split(':').map(point);
+    return !(a.column === 'A' && b.column === 'A' && a.row >= start && b.row < firstTotal + extra);
+   });
+   let index = 0;
+   while (index < items.length) {
+    let end = index;
+    while (end + 1 < items.length && items[end + 1].organ === items[index].organ) end++;
+    if (end > index) layout.merges.push(`A${start + index}:A${start + end}`);
+    for (let row = start + index + 1; row <= start + end; row++) delete layout.cells[`A${row}`];
+    index = end + 1;
+   }
+  }
+ } else {
+  const start = kind === 'list' ? 2 : 4;
+  const extra = Math.max(0, start + sheet.rows.length - 1 - layout.rowCount);
+  moveRows(layout, layout.rowCount + 1, extra, start);
+  sheet.rows.forEach((values, index) => putRow(layout, start + index, values));
+ }
+ sheet.templateLayout = layout;
+ return sheet;
+}
+
 export function generateProfessionalReport(form, config, sourceRecords = records) {
  if (form?.engine !== 'professional') throw new Error('Неизвестная форма профилактического контроля.');
  const filters = {...defaultFilters(), ...config.filters};
@@ -160,18 +264,18 @@ export function generateProfessionalReport(form, config, sourceRecords = records
  if (['list', 'execution'].includes(kind)) items = items.filter(record => fact(record, 'planIncluded') === true);
  if (['ao', 'administrative'].includes(kind)) items = items.filter(record => fact(record, 'scope') === 'АО');
  if (kind === 'opi') items = items.filter(record => fact(record, 'scope') === 'ОПИ');
+ if (kind === 'opi') items.sort((left, right) => String(left.organ).localeCompare(String(right.organ), 'ru') || String(left.id).localeCompare(String(right.id)));
  const sheets = form.sheets.map(schema => {
-  if (schema.kind === 'dictionary') return makeSheet(schema, schema.entries.map(entry => [entry.number, entry.description, null, null]));
   if (schema.kind === 'comparison') {
    const priorFilters = {...filters, from: previousDate(filters.from), to: previousDate(filters.to)};
    const prior = filterRecords(source, {sources: ['ПРОФ'], filters: priorFilters});
    // A provided historical population establishes source coverage; its absence
    // must not be mistaken for a zero previous-year result in custom inputs.
    const known = range => source.some(record => record.date >= range.from && record.date <= range.to);
-   return comparisonSheet(schema, items, prior, filters, known(filters), known(priorFilters));
+   return attachTemplate(schema, comparisonSheet(schema, items, prior, filters, known(filters), known(priorFilters)), items, filters);
   }
-  const rows = {list: halfyearRows, execution: executionRows, ao: aoRows, opi: opiRows, administrative: administrativeRows}[schema.kind](items);
-  return makeSheet(schema, rows);
+  const rows = {list: halfyearRows, execution: executionRows, ao: aoRows, opi: opiRows, administrative: administrativeRows}[schema.kind](items, schema);
+  return attachTemplate(schema, makeSheet(schema, rows), items, filters);
  });
  return {config, createdAt: new Date().toISOString(), recordCount: items.length,
   objectCount: new Set(items.map(record => record.bin).filter(Boolean)).size, sheets};

@@ -28,9 +28,9 @@ test('all archive forms generate from the catalog and export fully without openi
    click('export-all');assert.equal(downloads.length,before+1,form.id);
    assert.notEqual(node('#dialog').open,true);
    const xml=await downloads.at(-1).blob.text();
-   assert.equal((xml.match(/<sheet name=/g)||[]).length,form.sheets.length+1,form.id);
+   assert.equal((xml.match(/<sheet name=/g)||[]).length,form.sheets.length,form.id);
    assert.doesNotMatch(xml,/<pane |state="frozen"|#REF!|#DIV\/0!/,form.id);
-   for(const sheet of form.sheets)assert.match(xml,new RegExp(`dimension ref="A1:${colName(sheet.columnCount)}\\d+"`),sheet.id);
+   for(const sheet of form.sheets)assert.match(xml,new RegExp(`dimension ref="A1:${colName(sheet.templateLayout?.columnCount||sheet.columnCount)}\\d+"`),sheet.id);
   }
   // Selecting two columns from one sheet does not leak any of the other sheets.
   click('open-archive',{id:'uao-rating-criteria'});click('generate');click('configure-export');
@@ -39,12 +39,12 @@ test('all archive forms generate from the catalog and export fully without openi
   const rating=archiveForms.find(f=>f.id==='uao-rating-criteria');
   const last=rating.sheets.at(-1);change({exportColumn:`${last.id}:B`},'',true);change({exportColumn:`${last.id}:C`},'',true);
   click('download-selected-xlsx');const selected=await downloads.at(-1).blob.text();
-  assert.equal((selected.match(/<sheet name=/g)||[]).length,2);
+  assert.equal((selected.match(/<sheet name=/g)||[]).length,1);
   assert.match(selected,/dimension ref="A1:B\d+"/);
   click('download-selected-csv');assert.match(downloads.at(-1).name,/_selected.csv$/);
   assert.doesNotMatch(await downloads.at(-1).blob.text(),/Максимальный балл|Государственный аудит/);
   click('close-dialog');click('export-all');const full=await downloads.at(-1).blob.text();
-  assert.equal((full.match(/<sheet name=/g)||[]).length,5);
+  assert.equal((full.match(/<sheet name=/g)||[]).length,4);
   // Changing report parameters blocks both export routes until regenerated.
   const before=downloads.length;change({filter:'region'},'г. Астана');click('export-all');
   assert.equal(downloads.length,before);assert.match(page(),/Параметры изменены/);

@@ -32,3 +32,6 @@ dialog.export-dialog .dialog-foot{flex-wrap:wrap;padding:14px 24px}
 .export-column-ref{max-width:100px;text-align:right;flex-shrink:0}.export-column-ref span{display:block}.export-empty{padding:22px;font-size:13px;color:#697386}
 .export-missing{margin:10px 0 0}.export-entire{border-top:1px solid #e1e8ed;padding-top:12px;margin-top:12px}.export-entire summary{cursor:pointer;font-size:12px}
 @media(max-width:680px){dialog.export-dialog .dialog-body{padding:14px}.export-filters{grid-template-columns:1fr}.export-selection-tools{align-items:flex-start}.export-group-head{align-items:flex-start}.export-options{max-height:35vh}.export-column{padding:9px}.export-column-ref{max-width:70px}.export-dialog .dialog-foot .button{flex:1}}
+
+/* Report, catalog and analytics tables share the requested document font. */
+table, table :is(th,td,caption,button,input,select,textarea), [role="table"], [role="grid"] { font-family: "Times New Roman", Times, serif; }

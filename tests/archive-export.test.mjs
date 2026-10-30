@@ -26,7 +26,7 @@ function fixture(){return {
 test('archive full Excel preserves every sheet, multilevel headers, trailing header rows and numeric/text types',()=>{
  const result=fixture(),before=structuredClone(result),files=unzip(exportArchiveXlsx(result));
  assert.deepEqual(result,before);
- assert.equal(Object.keys(files).filter(name=>/^xl\/worksheets\//.test(name)).length,3);
+ assert.equal(Object.keys(files).filter(name=>/^xl\/worksheets\//.test(name)).length,2);
  assert.match(files['xl/workbook.xml'],/name="Результаты"/);assert.match(files['xl/workbook.xml'],/name="Показатели"/);
  const first=files['xl/worksheets/sheet1.xml'],second=files['xl/worksheets/sheet2.xml'];
  assert.match(first,/<dimension ref="A1:D4"/);assert.match(first,/<mergeCell ref="B1:C1"/);
@@ -38,7 +38,8 @@ test('archive full Excel preserves every sheet, multilevel headers, trailing hea
  assert.match(files['xl/styles.xml'],/numFmtId="49"/);assert.match(files['xl/styles.xml'],/FFE7E6E6/);
  for(const content of Object.values(files))assert.doesNotMatch(content,/<pane\b|state="frozen"|state="hidden"/);
  for(const body of [first,second])assert.doesNotMatch(body,/ДЕМОНСТРАЦИОННЫЕ ДАННЫЕ|Отчет УАО|Не для официальной отчетности/);
- assert.match(files['xl/worksheets/sheet3.xml'],/г. Астана/);assert.match(files['xl/worksheets/sheet3.xml'],/2026-09-30/);
+ assert.doesNotMatch(files['xl/workbook.xml'],/name="Параметры"/);
+ assert.ok([...files['xl/styles.xml'].matchAll(/<name val="([^"]+)"/g)].every(m=>m[1]==='Times New Roman'));
 });
 
 test('archive options and selected export retain canonical order and omit every unselected column and sheet',()=>{
@@ -47,7 +48,7 @@ test('archive options and selected export retain canonical order and omit every 
  assert.deepEqual(options.map(c=>c.id),['main:A','main:B','main:C','main:D','matrix:A','matrix:B','matrix:C']);
  assert.equal(options[1].label,'Результаты / Сумма');assert.equal(options[3].available,false);assert.equal(options[4].group,'Показатели');
  const files=unzip(exportArchiveXlsx(result,['matrix:C','matrix:A']));
- assert.equal(Object.keys(files).filter(name=>/^xl\/worksheets\//.test(name)).length,2);
+ assert.equal(Object.keys(files).filter(name=>/^xl\/worksheets\//.test(name)).length,1);
  assert.doesNotMatch(files['xl/workbook.xml'],/name="Результаты"/);
  assert.ok(Object.values(files).every(value=>!value.includes('PRIVATE_UNSELECTED')&&!value.includes('123.45')&&!value.includes('Текущий период')));
  const body=files['xl/worksheets/sheet1.xml'];
@@ -61,9 +62,9 @@ test('archive sheet names are valid and unique, including a source sheet named �
  const result=fixture();const name="'Неправильный/лист?очень:длинный[вопрос]*\\'";
  result.sheets[0].name=name;result.sheets[1].name=name.toUpperCase();result.sheets.push({...structuredClone(result.sheets[0]),id:'params',name:'Параметры'});
  const files=unzip(exportArchiveXlsx(result)),names=[...files['xl/workbook.xml'].matchAll(/<sheet name="([^"]+)"/g)].map(m=>decode(m[1]));
- assert.equal(names.length,4);assert.equal(new Set(names.map(name=>name.toLocaleLowerCase('ru'))).size,4);
+ assert.equal(names.length,3);assert.equal(new Set(names.map(name=>name.toLocaleLowerCase('ru'))).size,3);
  for(const name of names){assert.ok(name.length<=31);assert.doesNotMatch(name,/[\\/\?*\[\]:\u0000-\u001f]/);assert.doesNotMatch(name,/^'|'$/);}
- assert.equal(names[2],'Параметры');assert.equal(names[3],'Параметры (2)');
+ assert.equal(names[2],'Параметры');
 });
 
 test('archive CSV explicitly requires one sheet, escapes formula text, and keeps all selected rows',()=>{

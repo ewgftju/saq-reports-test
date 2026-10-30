@@ -57,9 +57,8 @@ test('selected XLSX exports from all four forms preserve exact rows and numeric 
   assert.match(files['xl/styles.xml'],/fgColor rgb="FFE7E6E6"/);
   for(const content of Object.values(files))assert.doesNotMatch(content,/DO_NOT_EXPORT_THIS_UNSELECTED_VALUE|<pane\b|state="frozen"/);
   assert.doesNotMatch(report,/mergeCell|ДЕМОНСТРАЦИОННЫЕ ДАННЫЕ|Не для официальной отчетности/);
-  assert.equal(Object.keys(files).filter(name=>name.startsWith('xl/worksheets/')).length,2,'no hidden full-form sheet');
-  const parameters=cells(files['xl/worksheets/sheet2.xml']);
-  assert.deepEqual(parameters.filter(r=>String(r.cells[0].value).startsWith('Выбранная колонка ')).map(r=>r.cells[1].value),selected.map(c=>c.label));
+  assert.equal(Object.keys(files).filter(name=>name.startsWith('xl/worksheets/')).length,1,'no extra sheets');
+  assert.doesNotMatch(files['xl/workbook.xml'],/Параметры|Состав формы/);
   const csv=exportSelectedCsv(result,'form',ids);
   assert.ok(csv.startsWith('\uFEFF'+selected.map(c=>'"'+c.label.replaceAll('"','""')+'"').join(';')));
   assert.ok(csv.includes('"Нет данных"'));assert.ok(!csv.includes('DO_NOT_EXPORT_THIS_UNSELECTED_VALUE'));

@@ -173,7 +173,7 @@ function matrixSheet(form,sheet,items){
   return value(matrixFact(form,sheet,row,c.letter,items,context));
  }));
  const columns=sheet.columns.map((c,i)=>({id:c.letter,label:c.labels.join(' · ')||`Позиция ${c.letter}`,labels:c.labels,group:c.labels[0]||'',available:rows.some(r=>r[i]!==null&&r[i]!==ARCHIVE_MISSING)}));
- return {id:sheet.id,name:sheet.name,columns,headerCells:sheet.headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,rows};
+ return {id:sheet.id,name:sheet.name,sourceSheetName:sheet.sourceSheetName,columns,headerCells:sheet.headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,rows};
 }
 export function generateArchiveReport(formId,filters=defaultFilters(),sourceRecords=records){
  const config=archiveConfig(formId,filters),error=validateArchiveFilters(config.filters);if(error)throw new Error(error);
@@ -188,7 +188,7 @@ export function generateArchiveReport(formId,filters=defaultFilters(),sourceReco
   const mapping=mappingFor(form,sheet),data=prepareRows(form,items);
   const columns=sheet.columns.map(c=>({id:c.letter,label:c.labels.join(' · ')||`Позиция ${c.letter}`,labels:c.labels,group:c.labels[0]||'',available:Boolean(mapping[c.letter])}));
   const rows=data.map((r,i)=>sheet.columns.map(c=>!c.labels.length&&!mapping[c.letter]?null:value(readKey(r,mapping[c.letter],i))));
-  return {id:sheet.id,name:sheet.name,columns,headerCells:sheet.headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,rows};
+  return {id:sheet.id,name:sheet.name,sourceSheetName:sheet.sourceSheetName,columns,headerCells:sheet.headerCells,headerDepth:sheet.headerDepth,merges:sheet.merges,rows};
  });
  return {config,createdAt:new Date().toISOString(),recordCount:items.length,objectCount:new Set(items.map(r=>r.bin).filter(Boolean)).size,sheets};
 }

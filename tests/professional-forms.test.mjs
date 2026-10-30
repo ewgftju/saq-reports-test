@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {professionalForms} from '../professional-schemas.js';
+import {professionalForms, professionalReferenceSheets} from '../professional-schemas.js';
 import {generateProfessionalReport, professionalReportDescriptions} from '../professional-engine.js';
 import {records, defaultFilters} from '../data.js';
 import {exportArchiveXlsx, archiveColumnOptions} from '../export.js';
@@ -9,7 +9,7 @@ import {exportArchiveXlsx, archiveColumnOptions} from '../export.js';
 const form = id => professionalForms.find(item => item.id === id);
 const config = (id, filters = {}) => ({name: form(id).name, sources: ['ПРОФ'], filters: {...defaultFilters(), ...filters}, ...professionalReportDescriptions[id]});
 const generate = (id, source, filters) => generateProfessionalReport(form(id), config(id, filters), source);
-const base = (id, professional = {}, extra = {}) => ({id, module: 'ПРОФ', date: '2026-06-10', region: 'Регион', organ: 'ДВГА тест', object: 'Учебный субъект', bin: '000000000001', status: 'Завершено', financial: 1000, procedural: 100, procedureCount: 2, professional, ...extra});
+const base = (id, professional = {}, extra = {}) => ({id, module: 'ПРОФ', date: '2026-06-10', region: 'г. Астана', organ: 'ДВГА тест', object: 'Учебный субъект', bin: '000000000001', status: 'Завершено', financial: 1000, procedural: 100, procedureCount: 2, professional, ...extra});
 function unzip(bytes) {
  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), decode = new TextDecoder(), files = {};
  let offset = 0;
@@ -20,12 +20,13 @@ function unzip(bytes) {
  return files;
 }
 
-test('six PK forms preserve template dimensions and attach 22 grounds only as a supporting sheet', () => {
+test('six PK forms preserve template dimensions; the separate grounds reference is never appended', () => {
  assert.equal(professionalForms.length, 6);
  assert.deepEqual(professionalForms.map(item => item.catalogNumber), [20, 21, 12, 6, 1, 19]);
  assert.deepEqual(professionalForms.map(item => item.sheets[0].columnCount), [39, 22, 38, 46, 12, 9]);
- assert.equal(form('prof-administrative').sheets[1].entries.length, 22);
- assert.equal(form('prof-public-interest').sheets[0].headerDepth, 4);
+ assert.equal(professionalReferenceSheets[0].entries.length, 22);
+ assert.ok(professionalForms.every(item => item.sheets.length === 1));
+ assert.equal(form('prof-public-interest').sheets[0].headerDepth, 5);
  assert.equal(form('prof-year-comparison').sheets[0].indicators.length, 17);
  const ao = form('prof-audit-organizations').sheets[0];
  for (let n = 1; n <= 17; n++) assert.ok(ao.columns.some(column => column.labels.includes(`Требование ${n}`)));
@@ -47,11 +48,11 @@ test('plan inclusion and special execution states never follow generic audit sta
  const source = [base('A', {scope: 'АО', planIncluded: true, planState: 'license-revoked'}),
   base('B', {scope: 'АО', planIncluded: true}), base('C', {scope: 'ОПИ', planIncluded: false, planState: 'ceased'}),
   base('D', {scope: 'ОПИ', planState: 'ceased'})];
- const result = generate('prof-list-execution', source), row = result.sheets[0].rows[0];
+ const result = generate('prof-list-execution', source), row = result.sheets[0].rows[6];
  assert.equal(result.recordCount, 2); assert.equal(row[10], 2);
  assert.equal(row[11], 'Нет данных'); assert.equal(row[14], 'Нет данных');
  assert.equal(row[16], 0); assert.equal(row[20], 0);
- const known = generate('prof-list-execution', source.slice(0, 1)).sheets[0].rows[0];
+ const known = generate('prof-list-execution', source.slice(0, 1)).sheets[0].rows[6];
  assert.equal(known[11], 0); assert.equal(known[14], 1);
 });
 
@@ -115,15 +116,16 @@ test('all generated forms export with original headers, complete sheets and no s
  for (const schema of professionalForms) {
   const configuration = config(schema.id), result = generateProfessionalReport(schema, configuration), files = unzip(exportArchiveXlsx(result));
   assert.equal(result.config, configuration);
-  assert.equal(Object.keys(files).filter(name => name.startsWith('xl/worksheets/')).length, schema.sheets.length + 1);
+  assert.equal(Object.keys(files).filter(name => name.startsWith('xl/worksheets/')).length, schema.sheets.length);
   const payload = Object.values(files).join('\n');
   assert.doesNotMatch(payload, /#REF!|<f[ >]|NaN|Infinity/);
   assert.ok(archiveColumnOptions(result).length >= schema.sheets[0].columnCount);
   for (const sheet of result.sheets) for (const row of sheet.rows) assert.equal(row.length, sheet.columns.length);
  }
  const admin = unzip(exportArchiveXlsx(generate('prof-administrative')));
- assert.match(admin['xl/workbook.xml'], /Основания КоАП из образца/);
- assert.match(admin['xl/worksheets/sheet2.xml'], /ст.464/);
+ assert.doesNotMatch(admin['xl/workbook.xml'], /Основания|Параметры/);
+ assert.equal(admin['xl/worksheets/sheet2.xml'], undefined);
+ assert.doesNotMatch(admin['xl/worksheets/sheet1.xml'], /Итого|ИТОГО/);
 });
 
 test('schemas contain only the allowlisted structural ranges, never OPI observation rows', async () => {
@@ -134,4 +136,47 @@ test('schemas contain only the allowlisted structural ranges, never OPI observat
   for (const cell of Object.keys(sheet.headerCells)) assert.ok(Number(cell.match(/\d+$/)[0]) <= sheet.headerDepth);
   if (sheet.indicators) assert.ok(sheet.indicators.every(row => Object.keys(row.cells).every(key => ['B', 'D', 'E'].includes(key))));
  }
+});
+
+test('source layout retains sheet names, title rows, numbering, fixed 20-DVGA grid and body merges', () => {
+ assert.deepEqual(professionalForms.map(item => item.sheets[0].sourceSheetName), ['Лист1', '08.04.25', '1 пол 2024', 'ОПИ', '1', 'КВГА табл 08.01 пересмотр']);
+ const ao = generate('prof-audit-organizations').sheets[0].templateLayout;
+ assert.match(ao.cells.A1, /Анализ проведенного профилактического контроля/);
+ assert.equal(ao.cells.AL4, 38); assert.equal(ao.cells.A12, 'Итого'); assert.ok(ao.merges.includes('A12:C12'));
+ const opi = generate('prof-public-interest').sheets[0].templateLayout;
+ assert.equal(opi.cells.AT5, 51); assert.equal(opi.cells.C40, 'ИТОГО'); assert.equal(opi.cells.C42, 'ОБЩИЙ ИТОГ');
+ assert.ok(opi.merges.some(range => /^A6:A\d+$/.test(range)));
+ const execution = generate('prof-list-execution').sheets[0];
+ assert.equal(execution.rows.length, 21); assert.equal(execution.templateLayout.rowCount, 23);
+ assert.equal(execution.templateLayout.cells.A23, 'ВСЕГО'); assert.ok(execution.templateLayout.merges.includes('A23:B23'));
+ for (const source of form('prof-list-execution').sheets[0].regions) assert.equal(execution.templateLayout.cells[`B${source.sourceRow}`], source.label);
+ const annual = generate('prof-year-comparison').sheets[0].templateLayout;
+ assert.ok(annual.merges.includes('B9:C11')); assert.ok(annual.merges.includes('B13:C15'));
+ assert.equal(annual.cells.B10, undefined); assert.equal(annual.cells.B14, undefined);
+ const original = form('prof-year-comparison').sheets[0].templateLayout;
+ for (const key of ['columnWidths', 'rowHeights', 'pageSetup', 'pageMargins']) assert.deepEqual(annual[key], original[key]);
+});
+
+test('original percentage formats receive fractions, while UI values remain percent numbers', () => {
+ const result = generate('prof-year-comparison', [base('NOW', {scope: 'ОПИ'}, {financial: 1500}), base('THEN', {scope: 'ОПИ'}, {date: '2025-06-10', financial: 1000})]);
+ assert.equal(result.sheets[0].rows[5][8], 50);
+ const layout = result.sheets[0].templateLayout;
+ assert.equal(layout.cells.I8, .5); assert.equal(layout.styles[layout.cellStyles.I8].numberFormat, '0%');
+});
+
+test('overflow extends template rows and moves totals without dropping observations', () => {
+ const objects = Array.from({length: 260}, (_, index) => base(`CASE-${index}`, {scope: 'АО', planIncluded: true, subjectRu: `Учебный субъект ${index}`}, {bin: String(index).padStart(12, '0')}));
+ const list = generate('prof-halfyear-list', objects).sheets[0].templateLayout;
+ assert.equal(list.rowCount, 261); assert.equal(list.cells.F261, 'Учебный субъект 259');
+ assert.ok(list.cellStyles.F261 != null);
+ const admin = generate('prof-administrative', objects.slice(0, 30)).sheets[0].templateLayout;
+ assert.equal(admin.rowCount, 33); assert.equal(admin.cells.C33, 'Учебный субъект 29');
+ assert.ok(Object.values(admin.cells).every(value => value !== 'Итого'));
+ const ao = generate('prof-audit-organizations', objects.slice(0, 45)).sheets[0].templateLayout;
+ assert.equal(ao.cells.C50, 'Учебный субъект 44'); assert.equal(ao.cells.A51, 'Итого'); assert.ok(ao.merges.includes('A51:C51'));
+ const opiSource = objects.slice(0, 40).map(item => ({...item, professional: {...item.professional, scope: 'ОПИ'}}));
+ const opi = generate('prof-public-interest', opiSource).sheets[0].templateLayout;
+ assert.equal(opi.cells.C46, 'ИТОГО'); assert.equal(opi.cells.C48, 'ОБЩИЙ ИТОГ');
+ assert.equal(Object.keys(opi.cells).filter(ref => /^C(?:[6-9]|[1-3]\d|4[0-5])$/.test(ref)).length, 40);
+ assert.ok(opi.merges.includes('A6:A45'));
 });

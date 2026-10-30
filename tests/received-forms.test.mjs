@@ -11,8 +11,8 @@ const generate=(id,filters=defaultFilters(),source)=>{
  const schema=form(id),config={name:schema.name,dataset:'archive',archiveFormId:id,reportId:id,filters,sources:schema.sources,group:'none',columns:[],...receivedReportDescriptions[id]};
  return generateReceivedReport(schema,config,source);
 };
-const cell=(result,letter,index=0)=>result.sheets[0].rows[index][result.sheets[0].columns.findIndex(column=>column.id===letter)];
-const base=(id,props={})=>({...records.find(row=>row.module==='ВГА'),id,organ:'ДВГА тест',region:'Тестовая область',...props});
+const cell=(result,letter,index)=>{const sheet=result.sheets[0];const row=index??Math.max(0,sheet.rows.findIndex(row=>row.includes('г.Астана')));return sheet.rows[row][sheet.columns.findIndex(column=>column.id===letter)];};
+const base=(id,props={})=>({...records.find(row=>row.module==='ВГА'),id,organ:'ДВГА тест',region:'г. Астана',...props});
 const plan=(quarter,props={})=>({year:2026,quarter,kind:'Соответствие',coverage:10000,assignedAt:null,completedAt:null,excludedAt:null,...props});
 
 test('six supplied workbooks preserve every intended column and numeric quarter/year headers',()=>{
@@ -92,12 +92,13 @@ test('quality journal selects negative conclusions by quality date, not audit da
 });
 
 test('summary totals recalculate weighted shares and preserve only meaningful total cells',()=>{
- const source=[base('E',{organ:'Первый',format:'Электронный',financial:1000,procedural:0}),...Array.from({length:3},(_,index)=>base(`P${index}`,{organ:'Второй',format:'Бумажный',financial:99000,procedural:99000}))];
+ const source=[base('E',{organ:'Первый',region:'г. Астана',format:'Электронный',financial:1000,procedural:0}),...Array.from({length:3},(_,index)=>base(`P${index}`,{organ:'Второй',region:'г. Алматы',format:'Бумажный',financial:99000,procedural:99000}))];
  const result=generate('received-electronic-rating',defaultFilters(),source),total=result.sheets[0].rows.length-1;
- assert.equal(cell(result,'B',total),'Итого');assert.equal(cell(result,'C',total),null);
+ assert.equal(cell(result,'B',total),'ИТОГО');assert.equal(cell(result,'C',total),null);
  assert.equal(cell(result,'D',total),4);assert.equal(cell(result,'E',total),1);assert.equal(cell(result,'F',total),25);assert.equal(cell(result,'G',total),-4);assert.equal(cell(result,'H',total),1);
  const detailed=generate('received-plan-detail',defaultFilters(),[base('A',{financial:5000,procedural:1000,plan:plan(1,{coverage:10000,completedAt:'2026-02-01'})}),base('B',{financial:7000,procedural:0,plan:plan(2,{coverage:20000,completedAt:'2026-06-01'})})]);
- assert.equal(cell(detailed,'B',2),'Итого');assert.equal(cell(detailed,'J',2),30);assert.equal(cell(detailed,'K',2),13);assert.equal(cell(detailed,'L',2),12);assert.equal(cell(detailed,'M',2),1);assert.equal(cell(detailed,'A',2),null);
+ const final=detailed.sheets[0].rows.length-1;
+ assert.equal(cell(detailed,'B',final).trim(),'Итого');assert.equal(cell(detailed,'J',final),30);assert.equal(cell(detailed,'K',final),13);assert.equal(cell(detailed,'L',final),12);assert.equal(cell(detailed,'M',final),1);assert.equal(cell(detailed,'A',final),null);
 });
 
 test('detail preserves planned amount and only exposes completed results at the selected date',()=>{
@@ -128,4 +129,54 @@ test('schema and generated exports contain structural headers and no supplied pe
  const bytes=new TextDecoder().decode(exportArchiveXlsx(generate('received-plan-monitoring')));
  for(const quarter of [1,2,3,4])assert.ok(bytes.includes(`<v>${quarter}</v>`));
  assert.match(bytes,/Остаток/);assert.match(bytes,/Не назначено/);
+});
+
+test('source layout preserves original sheet names, titles, column numbering and fixed territorial rows',()=>{
+ assert.deepEqual(receivedForms.map(form=>form.sheets[0].name),['Перечень  2025 г ','лист','лист','Лист1','лист','Лист1']);
+ const monitor=generate('received-plan-monitoring').sheets[0].templateLayout;
+ assert.equal(monitor.cells.Z1,'Приложение 1 \n');
+ assert.match(monitor.cells.B4,/МОНИТОРИНГ ИСПОЛНЕНИЯ ПЕРЕЧНЯ \n/);
+ assert.equal(monitor.cells.D11,6);assert.equal(monitor.cells.AB11,25);
+ assert.equal(monitor.cells.C12,'Жетису');assert.equal(monitor.cells.C31,'Костанай');
+ assert.equal(monitor.cells.B32,'Всего по ДВГА');assert.equal(monitor.cells.C33,'УАС');assert.equal(monitor.cells.C34,'УАФО');assert.equal(monitor.cells.C35,'УР (УАС, УАФО)');
+ assert.equal(monitor.cells.B36,'Всего по КВГА');assert.equal(monitor.cells.B37,'ИТОГО');
+ assert.equal(monitor.rowCount,47);assert.ok(monitor.merges.includes('B41:Y41'));assert.ok(monitor.merges.includes('B37:C37'));
+ const rating=generate('received-electronic-rating').sheets[0].templateLayout;
+ assert.equal(rating.cells.B9,1);assert.equal(rating.cells.I9,8);assert.equal(rating.cells.C10,'Жамбыл');assert.equal(rating.cells.C29,'Алматинская');
+ assert.equal(rating.cells.C30,undefined);assert.equal(rating.cells.C31,'ЦА');assert.equal(rating.cells.B32,'ИТОГО');
+ assert.equal(rating.rowCount,32);assert.ok(rating.merges.includes('B32:C32'));
+ const summary=generate('received-plan-summary').sheets[0].templateLayout;
+ assert.equal(summary.cells.C7,'Абай');assert.equal(summary.cells.C26,'г.Шымкент');assert.equal(summary.cells.C27,'ЦА');assert.equal(summary.cells.B28,'Итого:');
+ const assignments=generate('received-assignment-decisions').sheets[0].templateLayout;
+ assert.equal(assignments.cells.A11,1);assert.equal(assignments.cells.F11,6);assert.equal(assignments.cells.B12,'Абай');assert.equal(assignments.cells.B31,'Улытау');assert.equal(assignments.cells.A32,'Всего');
+});
+
+test('source widths, heights, print settings and TNR are preserved instead of generic table defaults',()=>{
+ const rating=form('received-electronic-rating').sheets[0].templateLayout;
+ assert.equal(rating.columnWidths.C,23);assert.equal(rating.columnWidths.G,16.28515625);assert.equal(rating.rowHeights[3],38.25);
+ assert.equal(rating.pageSetup.orientation,'portrait');assert.equal(rating.pageSetup.scale,75);
+ const monitor=form('received-plan-monitoring').sheets[0].templateLayout;
+ assert.equal(monitor.pageSetup.scale,57);assert.equal(monitor.printArea,"'лист'!$A$1:$AB$47");
+ const detail=form('received-plan-detail').sheets[0].templateLayout;
+ assert.equal(detail.pageSetup.orientation,'landscape');assert.equal(detail.pageSetup.scale,38);assert.equal(detail.columnWidths.B,41);assert.equal(detail.rowHeights[6],69);
+ for(const source of receivedForms)for(const style of source.sheets[0].templateLayout.styles)assert.equal(style.font.name,'Times New Roman');
+});
+
+test('variable forms keep source blank slots and shift totals/styles only when data exceeds the template',()=>{
+ const empty=generate('received-plan-detail',defaultFilters(),[]).sheets[0];
+ assert.equal(empty.templateLayout.rowCount,13);assert.equal(empty.templateLayout.cells.B12,'Итого ');
+ const long=generate('received-plan-detail').sheets[0];
+ assert.equal(long.templateLayout.rowCount,34);assert.equal(long.templateLayout.cells.B33,'Итого ');
+ assert.equal(long.templateLayout.rowHeights[32],form('received-plan-detail').sheets[0].templateLayout.rowHeights[11]);
+ const journal=generate('received-quality-journal').sheets[0];
+ assert.equal(journal.templateLayout.rowCount,12);assert.equal(journal.templateLayout.rowHeights[12],89.25);
+ assert.match(journal.templateLayout.cells.F1,/с 01\.01\.2026г\. по 30\.09\.2026г\./);
+});
+
+test('fixed forms aggregate central/territorial totals separately and reject unmapped departments',()=>{
+ const data=[base('D',{plan:plan(1)}),base('C',{organ:'УАС',centralUnit:'УАС',plan:plan(2)})];
+ const layout=generate('received-plan-monitoring',defaultFilters(),data).sheets[0].templateLayout;
+ assert.equal(layout.cells.D24,1);assert.equal(layout.cells.D32,1);assert.equal(layout.cells.D33,1);assert.equal(layout.cells.D36,1);assert.equal(layout.cells.D37,2);
+ assert.equal(layout.cells.D34,undefined);
+ assert.throws(()=>generate('received-electronic-rating',defaultFilters(),[base('UNKNOWN',{organ:'Неизвестное управление',region:'Неизвестный регион'})]),/не сопоставлено/);
 });

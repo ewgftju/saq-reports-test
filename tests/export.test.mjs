@@ -27,11 +27,13 @@ test('every XLSX view starts with its table and no sheet freezes rows or adds a 
   const result=resultFor(template.id),files=unzip(exportXlsx(result,mode)),report=files['xl/worksheets/sheet1.xml'];
   assert.match(report,/<sheetData><row r="1"/);
   assert.doesNotMatch(report,/ДЕМОНСТРАЦИОННЫЕ ДАННЫЕ|Не для официальной отчетности|2026-01-01|2026-09-30/);
-  assert.ok(!report.includes(escape(result.config.name)),'title is on Parameters sheet only');
+  assert.ok(!report.includes(escape(result.config.name)),'no unsolicited report banner');
   for(const [name,content]of Object.entries(files).filter(([name])=>name.startsWith('xl/worksheets/'))){
    assert.doesNotMatch(content,/<pane\b|state="frozen"|headerFooter|oddFooter|printTitles/,name);
   }
-  assert.match(files['xl/worksheets/sheet2.xml'],/Вымышленные демонстрационные записи/);
+  assert.equal(Object.keys(files).filter(name=>name.startsWith('xl/worksheets/')).length,1);
+  assert.doesNotMatch(files['xl/workbook.xml'],/Параметры|Состав формы/);
+  assert.ok([...files['xl/styles.xml'].matchAll(/<name val="([^"]+)"/g)].every(m=>m[1]==='Times New Roman'));
   assert.match(files['xl/styles.xml'],/fgColor rgb="FFE7E6E6"/);
   assert.doesNotMatch(files['xl/styles.xml'],/FF003B5C|FFEEF4F8/);
  }

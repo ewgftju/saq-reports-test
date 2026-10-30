@@ -12,8 +12,8 @@ test('customer register retains ten departments and 72 numbered positions',()=>{
  assert.deepEqual(catalogReports.filter(r=>r.departmentId==='additional').map(r=>r.reportId),['sur','sva','prof','objections']);
 });
 
-test('all 31 active Excel forms and their 38 sheets have a distinct generating catalog entry',()=>{
- assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),38);
+test('all 31 active Excel forms and their 37 sheets have a distinct generating catalog entry',()=>{
+ assert.equal(archiveForms.length,31);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),37);
  const entries=catalogReports.filter(r=>r.archiveFormId);
  assert.equal(entries.length,31);
  assert.deepEqual(entries.map(r=>r.archiveFormId).sort(),archiveForms.map(f=>f.id).sort());

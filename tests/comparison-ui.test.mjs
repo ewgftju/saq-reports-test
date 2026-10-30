@@ -138,15 +138,11 @@ test('2025 multiple-organ drilldown preserves filters on regenerate and both exp
  const full=ui.downloads.at(-1);
  assert.match(full.name,/2025-01-01_2025-09-30/);
  assert.deepEqual(ids(await zipEntry(full.blob,'xl/worksheets/sheet1.xml')),expected);
- const fullParams=await zipEntry(full.blob,'xl/worksheets/sheet2.xml');
- assert.match(fullParams,/Органы аудита \(выбрано\)/);
- assert.ok(fullParams.includes(organs.join('; ')));
+ assert.doesNotMatch(await zipEntry(full.blob,'xl/workbook.xml'),/Параметры/);
  ui.click('configure-export');ui.click('download-selected-csv');
  assert.deepEqual(ids(await ui.downloads.at(-1).blob.text()),expected);
  ui.click('download-selected-xlsx');
- const selectedParams=await zipEntry(ui.downloads.at(-1).blob,'xl/worksheets/sheet2.xml');
- assert.match(selectedParams,/Органы аудита \(выбрано\)/);
- assert.ok(selectedParams.includes(organs.join('; ')));
+ assert.deepEqual(ids(await zipEntry(ui.downloads.at(-1).blob,'xl/worksheets/sheet1.xml')),expected);
  ui.click('close-dialog');
  // Edited parameters invalidate an old export before blur; regenerate retains the organ scope.
  const downloaded=ui.downloads.length;
@@ -161,5 +157,5 @@ test('2025 multiple-organ drilldown preserves filters on regenerate and both exp
  assert.match(ui.page(),/data-filter="from" value="2025-01-01"/);
  assert.match(ui.page(),/Выбрано: 2/);
  ui.click('analytics-all-organs');ui.click('analytics-drill',{module:'ВГА'});ui.click('export-all');
- assert.match(await zipEntry(ui.downloads.at(-1).blob,'xl/worksheets/sheet2.xml'),/Все органы/);
+ assert.doesNotMatch(await zipEntry(ui.downloads.at(-1).blob,'xl/workbook.xml'),/Параметры/);
 });
