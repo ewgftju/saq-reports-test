@@ -261,3 +261,6 @@ export function generateReceivedReport(form,config,sourceRecords=records){
  const resultItems=form.id==='received-quality-journal'?items.filter(item=>values.some(row=>row._caseId===item.id)):items;
  return {config:{...config,...receivedReportDescriptions[form.id],filters},createdAt:new Date().toISOString(),recordCount:resultItems.length,objectCount:new Set(resultItems.map(row=>row.bin).filter(Boolean)).size,sheets};
 }
+
+// The SVA plan forms use the same indicator definitions and variable-row grid.
+export {monitoring as planMonitoringValues, detail as planDetailValues, expandVariableLayout as expandPlanLayout};
