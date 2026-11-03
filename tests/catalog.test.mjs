@@ -4,18 +4,18 @@ import {departments,departmentReports,catalogReports,catalogStatus,filterCatalog
 import {catalogDetail,renderCatalogResults} from '../catalog-view.js';
 import {archiveForms,formDepartment} from '../form-registry.js';
 
-test('customer register retains ten departments and 72 numbered positions',()=>{
- assert.equal(departments.length,10);assert.equal(departmentReports.length,72);
+test('customer register retains ten departments and 76 numbered positions',()=>{
+ assert.equal(departments.length,10);assert.equal(departmentReports.length,76);
  assert.equal(new Set(catalogReports.map(r=>r.id)).size,catalogReports.length);
- assert.deepEqual(departments.map(d=>departmentReports.filter(r=>r.departmentId===d.id).length),[3,2,3,1,3,21,22,2,5,10]);
+ assert.deepEqual(departments.map(d=>departmentReports.filter(r=>r.departmentId===d.id).length),[3,2,3,1,3,21,22,6,5,10]);
  for(const d of departments){const group=departmentReports.filter(r=>r.departmentId===d.id);assert.deepEqual(group.map(r=>r.number),d.id==='uao'?Array.from({length:24},(_,i)=>i+1).filter(n=>![11,16].includes(n)):Array.from({length:group.length},(_,i)=>i+1));}
  assert.deepEqual(catalogReports.filter(r=>r.departmentId==='additional').map(r=>r.reportId),['sur','sva','prof','objections']);
 });
 
-test('all 34 active Excel forms and their 44 sheets have a distinct generating catalog entry',()=>{
- assert.equal(archiveForms.length,34);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),44);
+test('all 38 active Excel forms and their 48 sheets have a distinct generating catalog entry',()=>{
+ assert.equal(archiveForms.length,38);assert.equal(archiveForms.reduce((n,f)=>n+f.sheets.length,0),48);
  const entries=catalogReports.filter(r=>r.archiveFormId);
- assert.equal(entries.length,34);
+ assert.equal(entries.length,38);
  assert.deepEqual(entries.map(r=>r.archiveFormId).sort(),archiveForms.map(f=>f.id).sort());
  assert.deepEqual(entries.map(r=>r.sourceFile).sort(),archiveForms.map(f=>f.sourceFile).sort());
  for(const r of entries){assert.equal(r.departmentId,formDepartment(archiveForms.find(f=>f.id===r.archiveFormId)));assert.equal(catalogStatus(r),'available');}
@@ -27,7 +27,7 @@ test('all 34 active Excel forms and their 44 sheets have a distinct generating c
 });
 
 test('catalog filters departments, availability and source filenames',()=>{
- assert.equal(filterCatalog().length,82);assert.equal(filterCatalog({status:'available'}).length,38);
+ assert.equal(filterCatalog().length,86);assert.equal(filterCatalog({status:'available'}).length,42);
  assert.equal(filterCatalog({department:'uao',status:'available'}).length,19);
  assert.deepEqual(filterCatalog({search:'  УаО  ПРИЛОЖЕНИЕ 3 АП0731173356  '}).map(r=>r.archiveFormId),['uao-administrative']);
  assert.deepEqual(filterCatalog({search:'Отчет_по_видам_нарушений'}).map(r=>r.archiveFormId),['uao-violation-types']);
@@ -37,7 +37,7 @@ test('catalog filters departments, availability and source filenames',()=>{
 
 test('compact rows expose every Excel form without internal clarification notes',()=>{
  const html=renderCatalogResults({department:'all'});
- assert.equal((html.match(/data-action="open-archive"/g)||[]).length,68);
+ assert.equal((html.match(/data-action="open-archive"/g)||[]).length,76);
  assert.equal((html.match(/data-action="open-report"/g)||[]).length,8);
  assert.doesNotMatch(html,/report-card|report-grid|Нужно уточнение|расширенная редакция|data-action="catalog-details"/);
  assert.match(html,/Управление камерального контроля/);

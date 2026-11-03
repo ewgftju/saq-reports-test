@@ -22,8 +22,8 @@ test('catalog, ready form, builder, template, history, analytics and stale resul
  await import('../app.js');assert.match(page(),/Отчеты по управлениям/);assert.match(page(),/Итоги аудиторской деятельности в разрезе дел АБП/);
  click('department',{id:'legal'});assert.match(page(),/Юридическое управление/);assert.doesNotMatch(page(),/data-action="open-report"/);
  click('catalog-details',{id:'legal-01'});assert.match(node('#dialog').innerHTML,/Форма включена в перечень/);assert.doesNotMatch(node('#dialog').innerHTML,/data-action="open-report"/);click('close-dialog');
- click('catalog-reset');assert.match(page(),/Найдено: <strong>82/);input('catalog-search','ЭГА.xlsx');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>1/);
- click('catalog-reset');change({},'available',false,'catalog-status');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>38/);
+ click('catalog-reset');assert.match(page(),/Найдено: <strong>86/);input('catalog-search','ЭГА.xlsx');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>1/);
+ click('catalog-reset');change({},'available',false,'catalog-status');assert.match(node('#catalog-results').innerHTML,/Найдено: <strong>42/);
  click('catalog-details',{id:'archive-uao-vga'});assert.match(node('#dialog').innerHTML,/Форма доступна для формирования/);click('open-report',{id:'vga'});assert.equal(node('#dialog').open,false);assert.match(page(),/Управление анализа и отчетности/);click('generate');assert.match(page(),/Результат формирования/);assert.match(page(),/VGA-2026-001/);assert.match(page(),/Настроить выгрузку/);
 
  click('configure-export');assert.match(node('#dialog').innerHTML,/Все поля исходной формы \(246\)/);assert.match(node('#export-count').textContent,/Выбрано 18 из 246/);

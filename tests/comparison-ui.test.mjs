@@ -71,7 +71,7 @@ test('sidebar selects each of ten departments and all reports, clearing prior se
   assert.equal(JSON.parse(ui.saved.get('saq.reports.catalog.department.v1')),department.id);
  }
  ui.click('department',{id:'all'});
- assert.equal((ui.page().match(/data-catalog-id=/g)||[]).length,82);
+ assert.equal((ui.page().match(/data-catalog-id=/g)||[]).length,86);
  assert.match(ui.shell(),/data-id="all"[^>]*aria-current="page"/);
  ui.click('department',{id:'additional'});
  assert.equal((ui.page().match(/data-catalog-id=/g)||[]).length,4);

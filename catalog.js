@@ -642,6 +642,42 @@ export const departmentReports = [
     "material": "none"
   },
   {
+    "id": "financial-audit-03",
+    "departmentId": "financial-audit",
+    "number": 3,
+    "sourceTitle": "Дела, направленные на согласование",
+    "name": "Дела, направленные на согласование",
+    "files": [],
+    "material": "none"
+  },
+  {
+    "id": "financial-audit-04",
+    "departmentId": "financial-audit",
+    "number": 4,
+    "sourceTitle": "Результаты аудита финансовой отчетности",
+    "name": "Результаты аудита финансовой отчетности",
+    "files": [],
+    "material": "none"
+  },
+  {
+    "id": "financial-audit-05",
+    "departmentId": "financial-audit",
+    "number": 5,
+    "sourceTitle": "Передача материалов в правоохранительные органы",
+    "name": "Передача материалов в правоохранительные органы",
+    "files": [],
+    "material": "none"
+  },
+  {
+    "id": "financial-audit-06",
+    "departmentId": "financial-audit",
+    "number": 6,
+    "sourceTitle": "Еженедельная сводка по административным штрафам",
+    "name": "Еженедельная сводка по административным штрафам",
+    "files": [],
+    "material": "none"
+  },
+  {
     "id": "digital-risks-01",
     "departmentId": "digital-risks",
     "number": 1,
