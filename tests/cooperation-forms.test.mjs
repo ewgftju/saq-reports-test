@@ -68,8 +68,8 @@ test('first cooperation report adds exactly four original sheets and preserves b
  assert.ok(schema);
  assert.equal(formDepartment(schema), 'audit-cooperation');
  assert.equal(formNumber(schema), 1);
- assert.equal(archiveForms.length, 38);
- assert.equal(archiveForms.reduce((count, form) => count + form.sheets.length, 0), 48);
+ assert.equal(archiveForms.length, 39);
+ assert.equal(archiveForms.reduce((count, form) => count + form.sheets.length, 0), 49);
  assert.deepEqual(schema.sheets.map(sheet => sheet.sourceSheetName), ['ЦГО', 'МИО', 'ДП', 'ИТОГО']);
  assert.deepEqual(schema.sheets.map(sheet => sheet.columnCount), [51, 51, 49, 45]);
  assert.deepEqual(schema.sheets.map(sheet => sheet.dataRows.length), [30, 20, 20, 3]);

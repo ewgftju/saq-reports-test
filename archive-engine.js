@@ -7,6 +7,7 @@ import {generateProfessionalReport,professionalReportDescriptions} from './profe
 import {generateCooperationReport,cooperationReportDescriptions} from './cooperation-engine.js';
 import {generateCooperationPlanReport,cooperationPlanReportDescriptions} from './cooperation-plan-engine.js';
 import {generateFinancialAuditReport,financialAuditReportDescriptions} from './financial-audit-engine.js';
+import {generatePersonnelReport,personnelReportDescriptions} from './personnel-engine.js';
 
 export const ARCHIVE_MISSING='Нет данных';
 const formById=new Map(archiveForms.map(f=>[f.id,f]));
@@ -22,7 +23,8 @@ const provenance=k=>!k?'unavailable':baseKeys.has(k)?'existing-demo-record':'dem
 export function archiveConfig(formId,filters=defaultFilters()){
  const form=formById.get(formId);if(!form)throw new Error('Неизвестная архивная форма.');
  const normalized={...defaultFilters(),...filters};if(form.uaoNumber===20)normalized.format='Электронный';
- const description=receivedReportDescriptions[form.id]||professionalReportDescriptions[form.id]||cooperationReportDescriptions[form.id]||cooperationPlanReportDescriptions[form.id]||financialAuditReportDescriptions[form.id]||{};
+ if(form.engine==='personnel')normalized.from=normalized.to;
+ const description=receivedReportDescriptions[form.id]||professionalReportDescriptions[form.id]||cooperationReportDescriptions[form.id]||cooperationPlanReportDescriptions[form.id]||financialAuditReportDescriptions[form.id]||personnelReportDescriptions[form.id]||{};
  return {name:form.name,dataset:'archive',archiveFormId:form.id,reportId:form.id,filters:normalized,sources:form.sources||['ВГА'],group:'none',columns:[],...description};
 }
 export function validateArchiveFilters(filters){
@@ -181,6 +183,7 @@ function matrixSheet(form,sheet,items){
 export function generateArchiveReport(formId,filters=defaultFilters(),sourceRecords=records){
  const config=archiveConfig(formId,filters),error=validateArchiveFilters(config.filters);if(error)throw new Error(error);
  const form=formById.get(formId),asOf=form.uaoNumber===21;
+ if(form.engine==='personnel')return generatePersonnelReport(form,config,sourceRecords);
  if(form.engine==='received')return generateReceivedReport(form,config,sourceRecords);
  if(form.engine==='professional')return generateProfessionalReport(form,config,sourceRecords);
  if(form.engine==='cooperation')return generateCooperationReport(form,config,sourceRecords);

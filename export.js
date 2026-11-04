@@ -160,7 +160,7 @@ function archiveValue(value){
 }
 const archiveLabel=column=>column.label||column.labels?.filter(Boolean).join(' / ')||`Служебная колонка ${column.id}`;
 function archiveOptions(sheets){
- return sheets.flatMap(s=>s.columns.map(c=>({id:`${s.id}:${c.id}`,label:archiveLabel(c),group:s.name||s.id,available:c.available!==false,sheetId:s.id,columnId:c.id})));
+ return sheets.flatMap(s=>s.columns.filter(c=>!c.structural).map(c=>({id:`${s.id}:${c.id}`,label:archiveLabel(c),group:s.name||s.id,available:c.available!==false,sheetId:s.id,columnId:c.id})));
 }
 export function archiveColumnOptions(result){return archiveOptions(archiveSheets(result));}
 function archiveSelection(result,selectedIds){
